@@ -1,0 +1,504 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import subprocess
+import re
+from Xlib import X, XK, display
+
+INIT_PTR_POS = 30
+WINDOW_MIN_WIDTH = 1920/4
+WINDOW_MIN_HEIGHT = 1080/4
+LEFT = 1
+RIGHT = 2
+UPPER = 4
+LOWER = 8
+
+FRAME_COLOR = 'white'
+FRAME_THICKNESS = 2
+
+EVENTS = {
+    X.ButtonPress: 'handle_button_press',
+    X.ButtonRelease: 'handle_button_release',
+    X.MotionNotify: 'handle_motion_notify',
+    X.EnterNotify: 'handle_enter_notify',
+    X.MapNotify: 'handle_map_notify',
+    X.UnmapNotify: 'handle_unmap_notify',
+    X.MapRequest: 'handle_map_request',
+    X.DestroyNotify: 'handle_destroy_notify',
+    X.KeyPress: 'handle_key_press',
+    X.ConfigureRequest: 'handle_configure_request'
+}
+
+KEY_BINDS = {
+    'i': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_focus_next_window'
+    },
+    '1': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_exec_subprocess',
+            'args': 'urxvt &'
+    },
+    '2': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_exec_subprocess',
+            'args': 'emacs &'
+    },
+    '3':{
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_exec_subprocess',
+            'args': 'google-chrome &'
+    },
+    'm': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_maximize_window'
+    },
+    'h': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+            'args': LEFT
+    },
+    'l': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+            'args': RIGHT
+    },
+    'j': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+            'args': LOWER
+    },
+    'k': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+            'args': UPPER
+    },
+    'n': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_move_window_to_next_monitor'
+    },
+    'z': {
+            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_destroy_window'
+    }
+}
+
+def debug(str):
+    print('', str, file=sys.stderr, flush=True)
+
+class monitor_geometry:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+class hogeWM:
+    def __init__(self):
+        self.display = display.Display()
+        self.screen = self.display.screen()
+        self.colormap = self.screen.default_colormap
+        self.keybinds = {}
+
+        self.managed_windows = []
+        self.current_window = None
+        self.frame_windows = {}
+
+        self.current_vscreen = 0
+        self.window_vscreen = {}
+
+        self.monitor_sizes = []
+
+        self.cb_functions = {}
+
+        self.catch_events()
+        self.grab_keys()
+        self.grab_buttons()
+        self.crate_frame_windows()
+        self.parse_available_monitor_sizes()
+
+        for child in self.screen.root.query_tree().children:
+            if child.get_attributes().map_state:
+                self.manage_window(child)
+
+        self.focus_next_window()
+
+    def catch_events(self):
+        self.screen.root.change_attributes(event_mask =
+                                           X.SubstructureRedirectMask |
+                                           X.SubstructureNotifyMask |
+                                           X.EnterWindowMask |
+                                           X.LeaveWindowMask |
+                                           X.FocusChangeMask )
+                                           
+    def grab_keys(self):
+        debug('debug: grab_keys called')
+        for key, rule in KEY_BINDS.items():
+            keysym = XK.string_to_keysym(key)
+            keycode = self.display.keysym_to_keycode(keysym)
+            modifier = rule.get('modifier', None)
+            if modifier is None:
+                continue
+            self.screen.root.grab_key(keycode, modifier, True,
+                X.GrabModeAsync, X.GrabModeAsync)
+            self.keybinds[keycode] = rule
+            debug('debug: {} grabbed'.format(key))
+
+    def grab_buttons(self):
+        for button in [1, 3]:
+            self.screen.root.grab_button(button, X.Mod1Mask, True,
+                                         X.ButtonPressMask, X.GrabModeAsync,
+                                         X.GrabModeAsync, X.NONE, X.NONE)
+
+    def crate_frame_windows(self):
+        frame_pixel = self.colormap.alloc_named_color(FRAME_COLOR).pixel
+        for side in ['left', 'right', 'upper', 'lower']:
+            window = self.screen.root.create_window(
+                0,0,16,16,0,
+                self.screen.root_depth,
+                X.InputOutput,
+                background_pixel = frame_pixel,
+                override_redirect = 1)
+            window.map()
+            self.frame_windows[side] = window
+
+    def draw_frame_windows(self, window):
+        geom = self.get_window_geometry(window)
+        if geom == None:
+            return
+        for side in ['left', 'right', 'upper', 'lower']:
+            x, y, width, height = 0,0,0,0
+            if side == 'left':
+                x = geom.x
+                y = geom.y
+                width = FRAME_THICKNESS
+                height = geom.height
+            elif side == 'right':
+                x = geom.x + geom.width - FRAME_THICKNESS
+                y = geom.y
+                width = FRAME_THICKNESS
+                height = geom.height
+            elif side == 'upper':
+                x = geom.x
+                y = geom.y
+                width = geom.width
+                height = FRAME_THICKNESS
+            elif side == 'lower':
+                x = geom.x
+                y = geom.y + geom.height - FRAME_THICKNESS
+                width = geom.width
+                height = FRAME_THICKNESS
+            self.frame_windows[side].configure(
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                stack_mode=X.Above)
+            self.frame_windows[side].map()
+        
+    def get_window_attributes(self, window):
+        try:
+            return window.get_attributes()
+        except:
+            return None
+    def get_window_class(self, window):
+        try:
+            cmd, cls = window.get_wm_class()
+        except:
+            return ''
+        if cls is not None:
+            return cls
+        else:
+            return ''
+        
+    def get_window_name(self, window):
+        return 'id->0x{:x}, name->\'{}\''.format(window.id, self.get_window_class(window))
+
+    def manage_window(self, window):
+        debug('debug: manage_window called')
+        attrs = self.get_window_attributes(window)
+        if window in self.managed_windows:
+            return
+        if attrs is None:
+            return
+        if attrs.override_redirect:
+            return
+        debug('debug: managed {}'.format(self.get_window_name(window)))
+        self.managed_windows.append(window)
+        window.map()
+        window.change_attributes(event_mask=X.EnterWindowMask | X.LeaveWindowMask)
+
+    def unmanage_window(self, window):
+        debug('debug: unmanage_window called')
+        print(self.get_window_name(window))
+        if window in self.managed_windows:
+            debug('unmanaged')
+            self.managed_windows.remove(window)
+            self.current_window = -1
+
+    def focus_window(self, window):
+        debug('debug: focus_window called')
+        if window not in self.managed_windows:
+            return
+        window.set_input_focus(X.RevertToParent, 0)
+        window.configure(stack_mode=X.Above)
+        self.current_window = self.managed_windows.index(window)
+        self.draw_frame_windows(window)
+
+    def focus_next_window(self):
+        debug('debug: focus_next_window called')
+        if len(self.managed_windows) == 0:
+            return
+        if self.current_window == None:
+            if len(self.managed_windows) == 0:
+                return
+            self.current_window = -1
+        self.current_window += 1
+        if self.current_window >= len(self.managed_windows):
+            self.current_window = 0
+        next_window = self.managed_windows[self.current_window]
+        self.focus_window(next_window)
+        next_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+
+    def get_window_geometry(self, window):
+        try:
+            return window.get_geometry()
+        except:
+            return None
+
+    def get_monitor_geometry_with_window(self, window):
+        geom = self.get_window_geometry(window)
+        if geom is None:
+            return
+        max_cover = 0
+        max_monitor = self.monitor_sizes[0]
+        for monitor in self.monitor_sizes:
+            # horizontal(width)
+            h_sum = monitor.width + geom.width
+            h_cover = (h_sum-abs(monitor.x-geom.x)-abs((monitor.x+monitor.width) - (geom.x+geom.width)))/2
+            if h_cover < 0:
+                h_cover = 0
+            # vertical(height)
+            v_sum = monitor.height + geom.height
+            v_cover = (v_sum-abs(monitor.y-geom.y)-abs((monitor.y+monitor.height) - (geom.y+geom.height)))/2
+            if v_cover < 0:
+                v_cover = 0
+            cover = h_cover * v_cover
+            if max_cover < cover:
+                max_cover = cover
+                max_monitor = monitor
+        return max_monitor
+
+    def parse_available_monitor_sizes(self):
+        output = subprocess.getoutput('xrandr').split('\n')
+        for line in output:
+            if ' connected' in line:
+                try:
+                    m = re.search(r'(\d+)x(\d+)\+(\d+)\+(\d+)', line)
+                    width = int(m.group(1))
+                    height = int(m.group(2))
+                    x = int(m.group(3))
+                    y = int(m.group(4))
+                except:
+                    m = re.search(r'(\d+)x(\d+)', line)
+                    width = int(m.group(1))
+                    height = int(m.group(2))
+                    x, y = 0, 0
+                self.monitor_sizes.append(monitor_geometry(x, y, width, height))
+
+    def maximize_window(self, window):
+        if window not in self.managed_windows:
+            return
+        monitor = self.get_monitor_geometry_with_window(window)
+        window.configure(
+            x=monitor.x,
+            y=monitor.y,
+            width=monitor.width,
+            height=monitor.height)
+        self.draw_frame_windows(window)
+
+    def halve_window(self, window, args):
+        if window not in self.managed_windows:
+            return
+        geom = self.get_window_geometry(window)
+        monitor = self.get_monitor_geometry_with_window(window)
+        if geom is None:
+            return
+        if args & (LEFT | RIGHT) != 0:
+           if geom.width <= WINDOW_MIN_WIDTH:
+               return
+        if args & (UPPER | LOWER) != 0:
+            if geom.height <= WINDOW_MIN_HEIGHT:
+               return
+        x, y, width, height = geom.x, geom.y, geom.width, geom.height
+        px, py = 0, 0
+        if args & (LEFT | RIGHT) != 0:
+            width //= 2
+        if args & (UPPER | LOWER) != 0:
+            height //= 2
+        if args & RIGHT != 0:
+            x += width
+            px += width
+        if args & LOWER != 0:
+            y += height
+            py += height
+        window.warp_pointer(px+INIT_PTR_POS, py+INIT_PTR_POS)
+        window.configure(
+            x=x,
+            y=y,
+            width=width,
+            height=height)
+        self.draw_frame_windows(window)
+
+    def move_window_to_next_monitor(self, window):
+        if window not in self.managed_windows:
+            return
+        geom = self.get_window_geometry(window)
+        if geom is None:
+            return
+        monitor = self.get_monitor_geometry_with_window(window)
+        idx = self.monitor_sizes.index(monitor)+1
+        if idx >= len(self.monitor_sizes):
+            idx = 0
+        next_monitor = self.monitor_sizes[idx]
+        horizontal_ratio = next_monitor.width/monitor.width
+        vertical_ratio = next_monitor.height/monitor.height
+        x, y, width, height = geom.x, geom.y, geom.width, geom.height
+        xd = x - monitor.x
+        yd = y - monitor.y
+        x = int(xd * horizontal_ratio) + next_monitor.x
+        y = int(yd * vertical_ratio) + next_monitor.y
+        width = int(width * horizontal_ratio)
+        height = int(height * vertical_ratio)
+        window.configure(
+            x=x,
+            y=y,
+            width=width,
+            height=height)
+        window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+        
+    def destroy_window(self, window):
+        if window not in self.managed_windows:
+            return
+        window.destroy()
+        self.unmanage_window(window)
+
+    def cb_exec_subprocess(self, args):
+        debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
+        os.system(args)
+
+    def cb_focus_next_window(self):
+        self.focus_next_window()
+
+    def cb_maximize_window(self):
+        try:
+            self.maximize_window(self.managed_windows[self.current_window])
+        except:
+            return
+
+    def cb_halve_window(self, args):
+        try:            
+            self.halve_window(self.managed_windows[self.current_window], args)
+        except:
+            return
+        
+    def cb_move_window_to_next_monitor(self):
+        try:
+            self.move_window_to_next_monitor(self.managed_windows[self.current_window])
+        except:
+            return
+
+    def cb_destroy_window(self):
+        try:            
+            self.destroy_window(self.managed_windows[self.current_window])
+        except:
+            return
+
+    def handle_motion_notify(self, event):
+        debug('debug: handle_motion_notify called')
+        xd = event.root_x - self.start.root_x
+        yd = event.root_y - self.start.root_y
+        if self.start.detail == 1:
+            # move
+            self.start.child.configure(
+                x = self.start_geom.x + xd,
+                y = self.start_geom.y + yd)
+        elif self.start.detail == 3:
+            # resize
+            self.start.child.configure(
+                width = self.start_geom.width + xd,
+                height = self.start_geom.height + yd)
+    
+    def handle_button_press(self, event):
+        debug('debug: handle_button_press called')
+        if event.child == X.NONE:
+            return
+        self.screen.root.grab_pointer(True, X.PointerMotionMask | X.ButtonReleaseMask,
+            X.GrabModeAsync, X.GrabModeAsync, X.NONE, X.NONE, 0)
+        self.start = event
+        self.start_geom = self.get_window_geometry(event.child)
+
+    def handle_button_release(self, event):
+        debug('debug: handle_button_release called')
+        self.display.ungrab_pointer(0)
+
+    def handle_enter_notify(self, event):
+        debug('debug: handle_enter_notify called')
+#        window = event.window
+#        self.focus_window(window)
+
+    def handle_map_notify(self, event):
+        debug('debug: handle_map_notify called')
+        self.manage_window(event.window)
+
+    def handle_unmap_notify(self, event):
+        debug('debug: handle_unmap_notify called')
+        if event.window in self.managed_windows:
+            self.unmanage_window(event.window)
+
+    def handle_map_request(self, event):
+        debug('debug: handle_map_request called')
+        self.manage_window(event.window)
+        self.focus_window(event.window)
+        event.window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+
+    def handle_destroy_notify(self, event):
+        debug('debug: handle_destroy_notify called')
+        self.unmanage_window(event.window)
+
+    def handle_key_press(self, event):
+        debug('debug: handle_key_press called')
+        keycode = event.detail
+        rule = self.keybinds.get(keycode, None)
+        if rule is None:
+            return
+        modifier = rule.get('modifier', None)
+        debug('debug: key -> {}, rule -> {}'.format(keycode, rule))
+        method = getattr(self, rule['method'], None)
+        args = rule.get('args', None)
+        if method:
+            if args:
+                method(args)
+            else:
+                method()
+
+    def handle_configure_request(self, event):
+        window = event.window
+        x = event.x
+        y = event.y
+        width = event.width
+        height = event.height
+        mask = event.value_mask
+        if mask == 0b1111:
+            window.configure(x=x, y=y, width=width, height=height)
+        elif mask == 0b1100:
+            window.configure(width=width, height=height)
+        elif mask == 0b0011:
+            window.configure(x=x, y=y)
+        elif mask == 0b01000000:
+            window.configure(event.stack_mode)
+
+    def loop(self):
+        while True:
+            event = self.display.next_event()
+            if event.type in EVENTS:
+                handler = getattr(self, EVENTS[event.type], None)
+                if handler:
+                    handler(event)
+
+def main():
+    wm = hogeWM()
+    wm.loop()
+
+if __name__ == '__main__':
+    main()
