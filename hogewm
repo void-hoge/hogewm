@@ -104,7 +104,7 @@ class hogeWM:
         self.catch_events()
         self.grab_keys()
         self.grab_buttons()
-        self.crate_frame_windows()
+        self.create_frame_windows()
         self.parse_available_monitor_sizes()
 
         for child in self.screen.root.query_tree().children:
@@ -140,7 +140,7 @@ class hogeWM:
                                          X.ButtonPressMask, X.GrabModeAsync,
                                          X.GrabModeAsync, X.NONE, X.NONE)
 
-    def crate_frame_windows(self):
+    def create_frame_windows(self):
         frame_pixel = self.colormap.alloc_named_color(FRAME_COLOR).pixel
         for side in ['left', 'right', 'upper', 'lower']:
             window = self.screen.root.create_window(
