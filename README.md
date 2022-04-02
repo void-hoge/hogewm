@@ -25,19 +25,19 @@
 
 - Ctrl-Alt-h
 
-  Halve the selected window left-justified.
+  Halve the focused window left-justified.
 
 - Ctrl-Alt-l
 
-  Halve the selected window right-justified.
+  Halve the focused window right-justified.
 
 - Ctrl-Alt-j
 
-  Halve the selected window lower-justified.
+  Halve the focused window lower-justified.
 
 - Ctrl-Alt-k
 
-  Halve the selected window upper-justified.
+  Halve the focused window upper-justified.
 
 - Ctrl-Alt-1
 

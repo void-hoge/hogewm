@@ -105,12 +105,7 @@ class hogeWM:
         self.current_window = None
         self.frame_windows = {}
 
-        self.current_vscreen = 0
-        self.window_vscreen = {}
-
         self.monitor_sizes = []
-
-        self.cb_functions = {}
 
         self.catch_events()
         self.grab_keys()
