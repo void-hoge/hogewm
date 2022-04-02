@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import re
+import datetime
 from Xlib import X, XK, display
 
 INIT_PTR_POS = 30
@@ -16,6 +17,8 @@ LOWER = 8
 
 FRAME_COLOR = 'white'
 FRAME_THICKNESS = 2
+
+SCREENSHOT_DIR = '{}/screenshots'.format(os.getenv('HOME'))
 
 EVENTS = {
     X.ButtonPress: 'handle_button_press',
@@ -31,45 +34,53 @@ EVENTS = {
 }
 
 KEY_BINDS = {
-    'i': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_focus_next_window'
+    ('i', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_focus_next_window'
     },
-    '1': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_exec_subprocess',
+    ('1', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_exec_subprocess',
             'args': 'urxvt &'
     },
-    '2': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_exec_subprocess',
+    ('2', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_exec_subprocess',
             'args': 'emacs &'
     },
-    '3':{
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_exec_subprocess',
+    ('3', X.Mod1Mask | X.ControlMask):{
+            'method': 'cb_exec_subprocess',
             'args': 'google-chrome &'
     },
-    'm': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_maximize_window'
+    ('m', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_maximize_window'
     },
-    'h': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+    ('h', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_halve_window',
             'args': LEFT
     },
-    'l': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+    ('l', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_halve_window',
             'args': RIGHT
     },
-    'j': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+    ('j', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_halve_window',
             'args': LOWER
     },
-    'k': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_halve_window',
+    ('k', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_halve_window',
             'args': UPPER
     },
-    'n': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_move_window_to_next_monitor'
+    ('n', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_move_window_to_next_monitor'
     },
-    'z': {
-            'modifier': X.Mod1Mask | X.ControlMask, 'method': 'cb_destroy_window'
+    ('z', X.Mod1Mask | X.ControlMask): {
+            'method': 'cb_destroy_window'
+    },
+    ('Print', X.ControlMask): {
+            'method': 'cb_capture_screen',
+             'args': 'current'
+    },
+    ('Print', 0): {
+            'method': 'cb_capture_screen',
+            'args': 'full'
     }
 }
 
@@ -123,15 +134,15 @@ class hogeWM:
                                            
     def grab_keys(self):
         debug('debug: grab_keys called')
-        for key, rule in KEY_BINDS.items():
+        for (key, modifier), rule in KEY_BINDS.items():
             keysym = XK.string_to_keysym(key)
             keycode = self.display.keysym_to_keycode(keysym)
-            modifier = rule.get('modifier', None)
+#            modifier = rule.get('modifier', None)
             if modifier is None:
                 continue
             self.screen.root.grab_key(keycode, modifier, True,
                 X.GrabModeAsync, X.GrabModeAsync)
-            self.keybinds[keycode] = rule
+            self.keybinds[(keycode, modifier)] = rule
             debug('debug: {} grabbed'.format(key))
 
     def grab_buttons(self):
@@ -191,6 +202,7 @@ class hogeWM:
             return window.get_attributes()
         except:
             return None
+
     def get_window_class(self, window):
         try:
             cmd, cls = window.get_wm_class()
@@ -202,7 +214,16 @@ class hogeWM:
             return ''
         
     def get_window_name(self, window):
-        return 'id->0x{:x}, name->\'{}\''.format(window.id, self.get_window_class(window))
+        try:
+            return 'id->0x{:x}, name->\'{}\''.format(window.id, self.get_window_class(window))
+        except:
+            return ''
+
+    def get_window_id(self, window):
+        try:
+            return window.id
+        except:
+            return None
 
     def manage_window(self, window):
         debug('debug: manage_window called')
@@ -305,7 +326,6 @@ class hogeWM:
             y=monitor.y,
             width=monitor.width,
             height=monitor.height)
-        self.draw_frame_windows(window)
 
     def halve_window(self, window, args):
         if window not in self.managed_windows:
@@ -338,7 +358,6 @@ class hogeWM:
             y=y,
             width=width,
             height=height)
-        self.draw_frame_windows(window)
 
     def move_window_to_next_monitor(self, window):
         if window not in self.managed_windows:
@@ -373,6 +392,25 @@ class hogeWM:
         window.destroy()
         self.unmanage_window(window)
 
+    def capture_screen(self, window):
+        if window is None:
+            screen = '-root'
+        else:
+            try:
+                screen = '-id 0x{:x}'.format(self.get_window_id(window))
+            except:
+                return
+        now = datetime.datetime.now()
+        date = '{}-{}-{}_{}:{}:{}.{}'.format(
+            now.year,
+            now.month,
+            now.day,
+            now.hour,
+            now.minute,
+            now.second,
+            now.microsecond)
+        os.system('xwd {} | convert xwd:- {}/capture{}.png'.format(screen, SCREENSHOT_DIR, date))
+            
     def cb_exec_subprocess(self, args):
         debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
         os.system(args)
@@ -383,18 +421,21 @@ class hogeWM:
     def cb_maximize_window(self):
         try:
             self.maximize_window(self.managed_windows[self.current_window])
+            self.draw_frame_windows(self.managed_windows[self.current_window])
         except:
             return
 
     def cb_halve_window(self, args):
         try:            
             self.halve_window(self.managed_windows[self.current_window], args)
+            self.draw_frame_windows(self.managed_windows[self.current_window])
         except:
             return
         
     def cb_move_window_to_next_monitor(self):
         try:
             self.move_window_to_next_monitor(self.managed_windows[self.current_window])
+            self.draw_frame_windows(self.managed_windows[self.current_window])
         except:
             return
 
@@ -403,6 +444,16 @@ class hogeWM:
             self.destroy_window(self.managed_windows[self.current_window])
         except:
             return
+
+    def cb_capture_screen(self, args):
+        debug('debug: cb_capture_screen called')
+        if args == 'current':
+            try:
+                self.capture_screen(self.managed_windows[self.current_window])
+            except:
+                return
+        else:
+            self.capture_screen(None)
 
     def handle_motion_notify(self, event):
         debug('debug: handle_motion_notify called')
@@ -434,7 +485,8 @@ class hogeWM:
 
     def handle_enter_notify(self, event):
         debug('debug: handle_enter_notify called')
-#        window = event.window
+        window = event.window
+        window.set_input_focus(X.RevertToParent, 0)
 #        self.focus_window(window)
 
     def handle_map_notify(self, event):
@@ -459,10 +511,11 @@ class hogeWM:
     def handle_key_press(self, event):
         debug('debug: handle_key_press called')
         keycode = event.detail
-        rule = self.keybinds.get(keycode, None)
+        modifier = event.state
+        entry = (keycode, modifier)
+        rule = self.keybinds.get(entry, None)
         if rule is None:
             return
-        modifier = rule.get('modifier', None)
         debug('debug: key -> {}, rule -> {}'.format(keycode, rule))
         method = getattr(self, rule['method'], None)
         args = rule.get('args', None)

@@ -39,6 +39,12 @@
 - Ctrl-Alt-3
   Execute a command 'google-chrome &'
 
+- Print
+  Capture the root screen and save it in $HOME/screenshots/
+
+- Ctrl-Print
+  Capture the focused window and save it in $HOME/screenshots/
+
 ## LICENSE
 - GPLv3
 
