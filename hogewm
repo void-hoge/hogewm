@@ -236,7 +236,6 @@ class hogeWM:
 
     def unmanage_window(self, window):
         debug('debug: unmanage_window called')
-        print(self.get_window_name(window))
         if window in self.managed_windows:
             debug('unmanaged')
             self.managed_windows.remove(window)

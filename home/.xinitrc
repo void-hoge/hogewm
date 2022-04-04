@@ -1,0 +1,14 @@
+#!/bin/sh
+
+xset +fp $HOME/.local/share/fonts/
+xrdb $HOME/.Xdefaults
+xmodmap $HOME/.Xmodmap
+
+xset r rate 200 40
+setxkbmap -option ctrl:nocaps -option terminate:ctrl_alt_bksp
+
+redshift -l 35:135 &
+
+$HOME/programming/hogewm/hogewm 2> $HOME/programming/hogewm/debug.log &
+emacs &
+urxvt -geometry 80x35-64-0
