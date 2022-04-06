@@ -15,6 +15,9 @@ RIGHT = 2
 UPPER = 4
 LOWER = 8
 
+FORWARD = 0
+BACKWARD = 1
+
 FRAME_COLOR = 'white'
 FRAME_THICKNESS = 2
 
@@ -35,57 +38,82 @@ EVENTS = {
 
 KEY_BINDS = {
     ('i', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_focus_next_window'
+        'method': 'cb_focus_next_window',
+        'args': FORWARD
+    },
+    ('d', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_focus_next_window',
+        'args': FORWARD
+    },
+    ('a', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_focus_next_window',
+        'args': BACKWARD
     },
     ('1', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_exec_subprocess',
-            'args': 'urxvt &'
+        'method': 'cb_exec_subprocess',
+        'args': 'urxvt &'
     },
     ('2', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_exec_subprocess',
-            'args': 'emacs &'
+        'method': 'cb_exec_subprocess',
+        'args': 'emacs &'
     },
     ('3', X.Mod1Mask | X.ControlMask):{
-            'method': 'cb_exec_subprocess',
-            'args': 'google-chrome &'
+        'method': 'cb_exec_subprocess',
+        'args': 'google-chrome &'
     },
     ('m', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_maximize_window'
+        'method': 'cb_maximize_window'
     },
     ('h', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_halve_window',
-            'args': LEFT
+        'method': 'cb_halve_window',
+        'args': LEFT
     },
     ('l', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_halve_window',
-            'args': RIGHT
+        'method': 'cb_halve_window',
+        'args': RIGHT
     },
     ('j', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_halve_window',
-            'args': LOWER
+        'method': 'cb_halve_window',
+        'args': LOWER
     },
     ('k', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_halve_window',
-            'args': UPPER
+        'method': 'cb_halve_window',
+        'args': UPPER
     },
     ('n', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_move_window_to_next_monitor'
+        'method': 'cb_move_window_to_next_monitor'
     },
     ('z', X.Mod1Mask | X.ControlMask): {
-            'method': 'cb_destroy_window'
+        'method': 'cb_destroy_window'
     },
     ('Print', X.ControlMask): {
-            'method': 'cb_capture_screen',
-             'args': 'current'
+        'method': 'cb_capture_screen',
+        'args': 'current'
     },
     ('Print', 0): {
-            'method': 'cb_capture_screen',
-            'args': 'full'
+        'method': 'cb_capture_screen',
+        'args': 'full'
+    },
+    ('F1', X.Mod1Mask): {
+        'method': 'cb_select_vscreen',
+        'args': 0
+    },
+    ('F2', X.Mod1Mask): {
+        'method': 'cb_select_vscreen',
+        'args': 1
+    },
+    ('F3', X.Mod1Mask): {
+        'method': 'cb_select_vscreen',
+        'args': 2
+    },
+    ('F4', X.Mod1Mask): {
+        'method': 'cb_select_vscreen',
+        'args': 3
     }
 }
 
 def debug(str):
-    print('', str, file=sys.stderr, flush=True)
+    print(str, file=sys.stderr, flush=True)
 
 class monitor_geometry:
     def __init__(self, x, y, width, height):
@@ -102,6 +130,9 @@ class hogeWM:
         self.keybinds = {}
 
         self.managed_windows = []
+        self.exposed_windows = []
+        self.window_vscreen = {}
+        self.current_vscreen = 0
         self.current_window = None
         self.frame_windows = {}
 
@@ -117,8 +148,6 @@ class hogeWM:
             if child.get_attributes().map_state:
                 self.manage_window(child)
 
-        self.focus_next_window()
-
     def catch_events(self):
         self.screen.root.change_attributes(event_mask =
                                            X.SubstructureRedirectMask |
@@ -132,7 +161,6 @@ class hogeWM:
         for (key, modifier), rule in KEY_BINDS.items():
             keysym = XK.string_to_keysym(key)
             keycode = self.display.keysym_to_keycode(keysym)
-#            modifier = rule.get('modifier', None)
             if modifier is None:
                 continue
             self.screen.root.grab_key(keycode, modifier, True,
@@ -231,6 +259,8 @@ class hogeWM:
             return
         debug('debug: managed {}'.format(self.get_window_name(window)))
         self.managed_windows.append(window)
+        self.exposed_windows.append(window)
+        self.window_vscreen[window] = self.current_vscreen
         window.map()
         window.change_attributes(event_mask=X.EnterWindowMask | X.LeaveWindowMask)
 
@@ -240,28 +270,33 @@ class hogeWM:
             debug('unmanaged')
             self.managed_windows.remove(window)
             self.current_window = -1
+        if window in self.exposed_windows:
+            self.exposed_windows.remove(window)
 
     def focus_window(self, window):
         debug('debug: focus_window called')
-        if window not in self.managed_windows:
+        if window not in self.exposed_windows:
             return
         window.set_input_focus(X.RevertToParent, 0)
         window.configure(stack_mode=X.Above)
         self.current_window = self.managed_windows.index(window)
         self.draw_frame_windows(window)
 
-    def focus_next_window(self):
+    def focus_next_window(self, window, direction):
         debug('debug: focus_next_window called')
-        if len(self.managed_windows) == 0:
+        if len(self.exposed_windows) == 0:
             return
-        if self.current_window == None:
-            if len(self.managed_windows) == 0:
-                return
-            self.current_window = -1
-        self.current_window += 1
-        if self.current_window >= len(self.managed_windows):
-            self.current_window = 0
-        next_window = self.managed_windows[self.current_window]
+        if window in self.exposed_windows:
+            idx = self.exposed_windows.index(window)
+            if direction == FORWARD:
+                idx+=1
+                if idx >= len(self.exposed_windows):
+                    idx = 0
+            else:
+                idx-=1
+            next_window = self.exposed_windows[idx]
+        else:
+            next_window = self.exposed_windows[-1]
         self.focus_window(next_window)
         next_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
@@ -312,7 +347,7 @@ class hogeWM:
                 self.monitor_sizes.append(monitor_geometry(x, y, width, height))
 
     def maximize_window(self, window):
-        if window not in self.managed_windows:
+        if window not in self.exposed_windows:
             return
         monitor = self.get_monitor_geometry_with_window(window)
         window.configure(
@@ -322,7 +357,7 @@ class hogeWM:
             height=monitor.height)
 
     def halve_window(self, window, args):
-        if window not in self.managed_windows:
+        if window not in self.exposed_windows:
             return
         geom = self.get_window_geometry(window)
         monitor = self.get_monitor_geometry_with_window(window)
@@ -379,7 +414,7 @@ class hogeWM:
             width=width,
             height=height)
         window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
-        
+
     def destroy_window(self, window):
         if window not in self.managed_windows:
             return
@@ -404,50 +439,73 @@ class hogeWM:
             now.second,
             now.microsecond)
         os.system('xwd {} | convert xwd:- {}/capture{}.png'.format(screen, SCREENSHOT_DIR, date))
-            
-    def cb_exec_subprocess(self, args):
+
+    def select_vscreen(self, num):
+        if num < 0:
+            return
+        if num > 4:
+            return
+        self.current_vscreen = num
+        self.exposed_windows = []
+        for window in self.managed_windows:
+            if self.window_vscreen[window] == num:
+                window.map()
+                self.exposed_windows.append(window)
+            else:
+                window.unmap()
+
+    def cb_exec_subprocess(self, event, args):
         debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
         os.system(args)
 
-    def cb_focus_next_window(self):
-        self.focus_next_window()
+    def cb_focus_next_window(self, event, args):
+        window = event.child
+        self.focus_next_window(window, args)
 
-    def cb_maximize_window(self):
+    def cb_maximize_window(self, event):
+        window = event.child
         try:
-            self.maximize_window(self.managed_windows[self.current_window])
-            self.draw_frame_windows(self.managed_windows[self.current_window])
+            self.maximize_window(window)
+            self.draw_frame_windows(window)
         except:
             return
 
-    def cb_halve_window(self, args):
-        try:            
-            self.halve_window(self.managed_windows[self.current_window], args)
-            self.draw_frame_windows(self.managed_windows[self.current_window])
+    def cb_halve_window(self, event, args):
+        window = event.child
+        try:
+            self.halve_window(window, args)
+            self.draw_frame_windows(window)
         except:
             return
         
-    def cb_move_window_to_next_monitor(self):
+    def cb_move_window_to_next_monitor(self, event):
+        window = event.child
         try:
-            self.move_window_to_next_monitor(self.managed_windows[self.current_window])
-            self.draw_frame_windows(self.managed_windows[self.current_window])
+            self.move_window_to_next_monitor(window)
+            self.draw_frame_windows(window)
         except:
             return
 
-    def cb_destroy_window(self):
-        try:            
-            self.destroy_window(self.managed_windows[self.current_window])
+    def cb_destroy_window(self, event):
+        window = event.child
+        try:
+            self.destroy_window(window)
         except:
             return
 
-    def cb_capture_screen(self, args):
+    def cb_capture_screen(self, event, args):
         debug('debug: cb_capture_screen called')
+        window = event.child
         if args == 'current':
             try:
-                self.capture_screen(self.managed_windows[self.current_window])
+                self.capture_screen(window)
             except:
                 return
         else:
             self.capture_screen(None)
+
+    def cb_select_vscreen(self, event, args):
+        self.select_vscreen(args)
 
     def handle_motion_notify(self, event):
         debug('debug: handle_motion_notify called')
@@ -463,7 +521,7 @@ class hogeWM:
             self.start.child.configure(
                 width = self.start_geom.width + xd,
                 height = self.start_geom.height + yd)
-    
+
     def handle_button_press(self, event):
         debug('debug: handle_button_press called')
         if event.child == X.NONE:
@@ -489,7 +547,7 @@ class hogeWM:
 
     def handle_unmap_notify(self, event):
         debug('debug: handle_unmap_notify called')
-        if event.window in self.managed_windows:
+        if event.window in self.exposed_windows:
             self.unmanage_window(event.window)
 
     def handle_map_request(self, event):
@@ -514,10 +572,10 @@ class hogeWM:
         method = getattr(self, rule['method'], None)
         args = rule.get('args', None)
         if method:
-            if args:
-                method(args)
+            if args is not None:
+                method(event, args)
             else:
-                method()
+                method(event)
 
     def handle_configure_request(self, event):
         window = event.window

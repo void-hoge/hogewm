@@ -15,6 +15,14 @@
 
   Focus next window.
 
+- Ctrl-Alt-d
+
+  Focus forward window.(same as the above)
+
+- Ctrl-Alt-a
+
+  Focus backward window.
+
 - Ctrl-Alt-m
 
   Maximize the focused window.
@@ -58,6 +66,10 @@
 - Ctrl-Print
 
   Capture the focused window and save it in $HOME/screenshots/
+
+- Alt-F1~4
+
+  Select virtual 1~4 virtual screen.
 
 ## LICENSE
 - GPLv3
