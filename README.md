@@ -15,14 +15,6 @@
 
   Focus next window.
 
-- Ctrl-Alt-d
-
-  Focus forward window.(same as the above)
-
-- Ctrl-Alt-a
-
-  Focus backward window.
-
 - Ctrl-Alt-m
 
   Maximize the focused window.
@@ -70,6 +62,15 @@
 - Alt-F1~4
 
   Select virtual 1~4 virtual screen.
+
+- Ctrl-Alt-d
+
+  Send focused window to forward virtual screen.
+
+- Ctrl-Alt-a
+
+  Send focused window to backward virtual screen.
+
 
 ## LICENSE
 - GPLv3

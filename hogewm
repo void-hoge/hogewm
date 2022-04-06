@@ -18,6 +18,8 @@ LOWER = 8
 FORWARD = 0
 BACKWARD = 1
 
+MAX_VSCREEN = 3
+
 FRAME_COLOR = 'white'
 FRAME_THICKNESS = 2
 
@@ -40,14 +42,6 @@ KEY_BINDS = {
     ('i', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_focus_next_window',
         'args': FORWARD
-    },
-    ('d', X.Mod1Mask | X.ControlMask): {
-        'method': 'cb_focus_next_window',
-        'args': FORWARD
-    },
-    ('a', X.Mod1Mask | X.ControlMask): {
-        'method': 'cb_focus_next_window',
-        'args': BACKWARD
     },
     ('1', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_exec_subprocess',
@@ -109,6 +103,14 @@ KEY_BINDS = {
     ('F4', X.Mod1Mask): {
         'method': 'cb_select_vscreen',
         'args': 3
+    },
+    ('d', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_send_window_to_next_vscreen',
+        'args': FORWARD
+    },
+    ('a', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_send_window_to_next_vscreen',
+        'args': BACKWARD
     }
 }
 
@@ -133,8 +135,8 @@ class hogeWM:
         self.exposed_windows = []
         self.window_vscreen = {}
         self.current_vscreen = 0
-        self.current_window = None
         self.frame_windows = {}
+        self.framed_window = {}
 
         self.monitor_sizes = []
 
@@ -219,6 +221,7 @@ class hogeWM:
                 height=height,
                 stack_mode=X.Above)
             self.frame_windows[side].map()
+        self.framed_window = window
         
     def get_window_attributes(self, window):
         try:
@@ -277,6 +280,7 @@ class hogeWM:
         debug('debug: focus_window called')
         if window not in self.exposed_windows:
             return
+        debug('debug: focused {}'.format(self.get_window_name(window)))
         window.set_input_focus(X.RevertToParent, 0)
         window.configure(stack_mode=X.Above)
         self.current_window = self.managed_windows.index(window)
@@ -289,9 +293,7 @@ class hogeWM:
         if window in self.exposed_windows:
             idx = self.exposed_windows.index(window)
             if direction == FORWARD:
-                idx+=1
-                if idx >= len(self.exposed_windows):
-                    idx = 0
+                idx = (idx+1)%len(self.exposed_windows)
             else:
                 idx-=1
             next_window = self.exposed_windows[idx]
@@ -347,7 +349,8 @@ class hogeWM:
                 self.monitor_sizes.append(monitor_geometry(x, y, width, height))
 
     def maximize_window(self, window):
-        if window not in self.exposed_windows:
+        if window not in self.managed_windows:
+            debug('debug: at maximize_window window is not in managed_windows')
             return
         monitor = self.get_monitor_geometry_with_window(window)
         window.configure(
@@ -389,7 +392,7 @@ class hogeWM:
             height=height)
 
     def move_window_to_next_monitor(self, window):
-        if window not in self.managed_windows:
+        if window not in self.exposed_windows:
             return
         geom = self.get_window_geometry(window)
         if geom is None:
@@ -443,7 +446,7 @@ class hogeWM:
     def select_vscreen(self, num):
         if num < 0:
             return
-        if num > 4:
+        if num > MAX_VSCREEN:
             return
         self.current_vscreen = num
         self.exposed_windows = []
@@ -454,16 +457,33 @@ class hogeWM:
             else:
                 window.unmap()
 
+    def send_window_to_next_vscreen(self, window, direction):
+        if window not in self.exposed_windows:
+            return None
+        vscreen = self.window_vscreen[window]
+        if direction == FORWARD:
+            vscreen += 1
+            if vscreen > MAX_VSCREEN:
+                vscreen = 0
+        else:
+            vscreen -= 1
+            if vscreen < 0:
+                vscreen = MAX_VSCREEN
+        self.window_vscreen[window] = vscreen
+        window.unmap()
+        self.exposed_windows.remove(window)
+        return vscreen
+
     def cb_exec_subprocess(self, event, args):
         debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
         os.system(args)
 
     def cb_focus_next_window(self, event, args):
-        window = event.child
+        window = self.framed_window
         self.focus_next_window(window, args)
 
     def cb_maximize_window(self, event):
-        window = event.child
+        window = self.framed_window
         try:
             self.maximize_window(window)
             self.draw_frame_windows(window)
@@ -471,7 +491,7 @@ class hogeWM:
             return
 
     def cb_halve_window(self, event, args):
-        window = event.child
+        window = self.framed_window
         try:
             self.halve_window(window, args)
             self.draw_frame_windows(window)
@@ -479,7 +499,7 @@ class hogeWM:
             return
         
     def cb_move_window_to_next_monitor(self, event):
-        window = event.child
+        window = self.framed_window
         try:
             self.move_window_to_next_monitor(window)
             self.draw_frame_windows(window)
@@ -487,7 +507,7 @@ class hogeWM:
             return
 
     def cb_destroy_window(self, event):
-        window = event.child
+        window = self.framed_window
         try:
             self.destroy_window(window)
         except:
@@ -495,7 +515,7 @@ class hogeWM:
 
     def cb_capture_screen(self, event, args):
         debug('debug: cb_capture_screen called')
-        window = event.child
+        window = self.framed_window
         if args == 'current':
             try:
                 self.capture_screen(window)
@@ -505,7 +525,15 @@ class hogeWM:
             self.capture_screen(None)
 
     def cb_select_vscreen(self, event, args):
+        debug('debug: cb_select_vscreen called')
         self.select_vscreen(args)
+
+    def cb_send_window_to_next_vscreen(self, event, args):
+        debug('debug: cb_send_window_to_next_screen called')
+        window = self.framed_window
+        vscreen = self.send_window_to_next_vscreen(window, args)
+        if vscreen is not None:
+            self.select_vscreen(vscreen)
 
     def handle_motion_notify(self, event):
         debug('debug: handle_motion_notify called')
@@ -539,7 +567,6 @@ class hogeWM:
         debug('debug: handle_enter_notify called')
         window = event.window
         window.set_input_focus(X.RevertToParent, 0)
-#        self.focus_window(window)
 
     def handle_map_notify(self, event):
         debug('debug: handle_map_notify called')
