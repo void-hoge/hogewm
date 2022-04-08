@@ -5,6 +5,7 @@ import sys
 import subprocess
 import re
 import datetime
+import math
 from Xlib import X, XK, display
 
 INIT_PTR_POS = 30
@@ -111,6 +112,9 @@ KEY_BINDS = {
     ('a', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_send_window_to_next_vscreen',
         'args': BACKWARD
+    },
+    ('t', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_tile_windows'
     }
 }
 
@@ -139,6 +143,7 @@ class hogeWM:
         self.framed_window = {}
 
         self.monitor_sizes = []
+        self.max_size = None
 
         self.catch_events()
         self.grab_keys()
@@ -290,15 +295,22 @@ class hogeWM:
         debug('debug: focus_next_window called')
         if len(self.exposed_windows) == 0:
             return
-        if window in self.exposed_windows:
-            idx = self.exposed_windows.index(window)
+        def sort_key(window):
+            geom = self.get_window_geometry(window)
+            if geom is None:
+                return 1<<31
+            else:
+                return geom.x * self.max_size.height + geom.y
+        windows = sorted(self.exposed_windows, key=sort_key)
+        if window in windows:
+            idx = windows.index(window)
             if direction == FORWARD:
-                idx = (idx+1)%len(self.exposed_windows)
+                idx = (idx+1)%len(windows)
             else:
                 idx-=1
-            next_window = self.exposed_windows[idx]
+            next_window = windows[idx]
         else:
-            next_window = self.exposed_windows[-1]
+            next_window = windows[-1]
         self.focus_window(next_window)
         next_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
@@ -333,6 +345,7 @@ class hogeWM:
 
     def parse_available_monitor_sizes(self):
         output = subprocess.getoutput('xrandr').split('\n')
+        max_width, max_height = 0, 0
         for line in output:
             if ' connected' in line:
                 try:
@@ -346,7 +359,12 @@ class hogeWM:
                     width = int(m.group(1))
                     height = int(m.group(2))
                     x, y = 0, 0
+                if max_width < x+width:
+                    max_width = x+width
+                if max_height < y+height:
+                    max_height = y+height
                 self.monitor_sizes.append(monitor_geometry(x, y, width, height))
+        self.max_size = monitor_geometry(0, 0, max_width, max_height)
 
     def maximize_window(self, window):
         if window not in self.managed_windows:
@@ -474,6 +492,41 @@ class hogeWM:
         self.exposed_windows.remove(window)
         return vscreen
 
+    def get_title_layout(self, tile_num):
+        tmp = int(math.sqrt(tile_num))
+        # (row, col)
+        if tmp**2 == tile_num:
+            return (tmp, tmp)
+        if (tmp+1)*tmp >= tile_num:
+            return (tmp, tmp+1)
+        return (tmp+1, tmp+1)
+
+    def tile_windows(self, window):
+        monitor = self.get_monitor_geometry_with_window(window)
+        target_windows = []
+        for win in self.exposed_windows:
+            if monitor == self.get_monitor_geometry_with_window(win):
+                target_windows.append(win)
+        def sort_key(window):
+            return window.id
+        target_windows.sort(key=sort_key)
+        nrows, ncols = self.get_title_layout(len(target_windows))
+        offcuts_num = nrows*ncols - len(target_windows)
+        for row in reversed(range(nrows)):
+            for col in reversed(range(ncols)):
+                if not target_windows:
+                    break
+                win = target_windows.pop()
+                x = monitor.x + monitor.width*col//ncols
+                width = monitor.width//ncols
+                if row == 1 and col < offcuts_num:
+                    height = monitor.height*2//nrows
+                    y = 0 + monitor.y
+                else:
+                    height = monitor.height//nrows
+                    y = monitor.y + monitor.height*row//nrows
+                win.configure(x=x, y=y, width=width, height=height)
+
     def cb_exec_subprocess(self, event, args):
         debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
         os.system(args)
@@ -535,6 +588,12 @@ class hogeWM:
         if vscreen is not None:
             self.select_vscreen(vscreen)
 
+    def cb_tile_windows(self, event):
+        debug('debug: cb_tile_windows called')
+        window = self.framed_window
+        self.tile_windows(window)
+        self.focus_window(window)
+
     def handle_motion_notify(self, event):
         debug('debug: handle_motion_notify called')
         xd = event.root_x - self.start.root_x
@@ -549,6 +608,7 @@ class hogeWM:
             self.start.child.configure(
                 width = self.start_geom.width + xd,
                 height = self.start_geom.height + yd)
+        self.draw_frame_windows(self.start.child)
 
     def handle_button_press(self, event):
         debug('debug: handle_button_press called')

@@ -71,6 +71,9 @@
 
   Send focused window to backward virtual screen.
 
+- Ctrl-Alt-t
+
+  Tile all windows on a monitor that has a framed window.
 
 ## LICENSE
 - GPLv3
