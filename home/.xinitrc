@@ -9,6 +9,6 @@ setxkbmap -option ctrl:nocaps -option terminate:ctrl_alt_bksp
 
 redshift -l 35:135 &
 
-$HOME/programming/hogewm/hogewm 2> $HOME/programming/hogewm/debug.log &
+$HOME/hogewm/hogewm 2> $HOME/hogewm/debug.log &
 emacs &
 urxvt -geometry 80x35-64-0

@@ -16,6 +16,9 @@ RIGHT = 2
 UPPER = 4
 LOWER = 8
 
+HORIZONTAL = 1
+VERTICAL = 2
+
 FORWARD = 0
 BACKWARD = 1
 
@@ -57,7 +60,12 @@ KEY_BINDS = {
         'args': 'google-chrome &'
     },
     ('m', X.Mod1Mask | X.ControlMask): {
-        'method': 'cb_maximize_window'
+        'method': 'cb_maximize_window',
+        'args': HORIZONTAL | VERTICAL
+    },
+    ('comma', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_maximize_window',
+        'args': VERTICAL
     },
     ('h', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_halve_window',
@@ -366,16 +374,27 @@ class hogeWM:
                 self.monitor_sizes.append(monitor_geometry(x, y, width, height))
         self.max_size = monitor_geometry(0, 0, max_width, max_height)
 
-    def maximize_window(self, window):
+    def maximize_window(self, window, mask):
         if window not in self.managed_windows:
             debug('debug: at maximize_window window is not in managed_windows')
             return
         monitor = self.get_monitor_geometry_with_window(window)
+        geom = self.get_window_geometry(window)
+        x = geom.x
+        y = geom.y
+        width = geom.width
+        height = geom.height
+        if mask & VERTICAL is not 0:
+            y = monitor.y
+            height = monitor.height
+        if mask & HORIZONTAL is not 0:
+            x = monitor.x
+            width = monitor.width
         window.configure(
-            x=monitor.x,
-            y=monitor.y,
-            width=monitor.width,
-            height=monitor.height)
+            x=x,
+            y=y,
+            width=width,
+            height=height)
 
     def halve_window(self, window, args):
         if window not in self.exposed_windows:
@@ -512,11 +531,17 @@ class hogeWM:
         target_windows.sort(key=sort_key)
         nrows, ncols = self.get_title_layout(len(target_windows))
         offcuts_num = nrows*ncols - len(target_windows)
+        eidx = None
+        for i in range(len(target_windows)):
+            if 'emacs' in self.get_window_class(target_windows[i]).lower():
+                eidx = i
+        if eidx is not None:
+            target_windows[eidx], target_windows[ncols*(nrows-1)-1] = target_windows[ncols*(nrows-1)-1], target_windows[eidx]
         for row in reversed(range(nrows)):
             for col in reversed(range(ncols)):
                 if not target_windows:
                     break
-                win = target_windows.pop()
+                win = target_windows.pop(0)
                 x = monitor.x + monitor.width*col//ncols
                 width = monitor.width//ncols
                 if row == 1 and col < offcuts_num:
@@ -535,15 +560,17 @@ class hogeWM:
         window = self.framed_window
         self.focus_next_window(window, args)
 
-    def cb_maximize_window(self, event):
+    def cb_maximize_window(self, event, args):
+        debug('debug: cb_maximize_window called')
         window = self.framed_window
         try:
-            self.maximize_window(window)
+            self.maximize_window(window, args)
             self.draw_frame_windows(window)
         except:
             return
 
     def cb_halve_window(self, event, args):
+        debug('debug: cb_halve_window called')
         window = self.framed_window
         try:
             self.halve_window(window, args)
@@ -552,6 +579,7 @@ class hogeWM:
             return
         
     def cb_move_window_to_next_monitor(self, event):
+        debug('debug: cb_move_window_to_next_monitor called')
         window = self.framed_window
         try:
             self.move_window_to_next_monitor(window)
@@ -560,6 +588,7 @@ class hogeWM:
             return
 
     def cb_destroy_window(self, event):
+        debug('debug: cb_destroy_window called')
         window = self.framed_window
         try:
             self.destroy_window(window)
