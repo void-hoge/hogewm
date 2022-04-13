@@ -24,6 +24,7 @@
   Move the focused window to next monitor.
 
 - Ctrl-Alt-s
+
   Swap all window between monitors.
 
 - Ctrl-Alt-h
