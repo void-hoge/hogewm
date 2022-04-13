@@ -86,6 +86,9 @@ KEY_BINDS = {
     ('n', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_move_window_to_next_monitor'
     },
+    ('s', X.Mod1Mask | X.ControlMask):{
+        'method': 'cb_swap_windows_bw_monitors'
+    },
     ('z', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_destroy_window'
     },
@@ -586,6 +589,11 @@ class hogeWM:
             self.draw_frame_windows(window)
         except:
             return
+
+    def cb_swap_windows_bw_monitors(self, event):
+        debug('debug: cb_swap_windows_bw_monitors called')
+        for window in self.exposed_windows:
+            self.move_window_to_next_monitor(window)
 
     def cb_destroy_window(self, event):
         debug('debug: cb_destroy_window called')
