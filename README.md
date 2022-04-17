@@ -5,43 +5,47 @@
 ## KEY_BINDS
 - Alt-Button1
 
-  Move the focused window while dragging.
+  Move the pointed window while dragging.
 
 - Alt-Button3
 
-  Resize the focused window while dragging.
+  Resize the pointed window while dragging.
 
 - Ctrl-Alt-i
 
-  Focus next window.
+  Select next window.
+
+- Ctrl-Alt-r
+
+  Focus(raise and draw frame) pointed window.
 
 - Ctrl-Alt-m
 
-  Maximize the focused window.
+  Maximize the framed window.
 
 - Ctrl-Alt-n
 
-  Move the focused window to next monitor.
+  Move the framed window to next monitor.
 
 - Ctrl-Alt-s
 
-  Swap all window between monitors.
+  Swap all windows between monitors.
 
 - Ctrl-Alt-h
 
-  Halve the focused window left-justified.
+  Halve the framed window left-justified.
 
 - Ctrl-Alt-l
 
-  Halve the focused window right-justified.
+  Halve the framed window right-justified.
 
 - Ctrl-Alt-j
 
-  Halve the focused window lower-justified.
+  Halve the framed window lower-justified.
 
 - Ctrl-Alt-k
 
-  Halve the focused window upper-justified.
+  Halve the framed window upper-justified.
 
 - Ctrl-Alt-1
 
@@ -61,7 +65,7 @@
 
 - Ctrl-Print
 
-  Capture the focused window and save it in $HOME/screenshots/
+  Capture the framed window and save it in $HOME/screenshots/
 
 - Alt-F1~4
 
@@ -69,11 +73,11 @@
 
 - Ctrl-Alt-d
 
-  Send focused window to forward virtual screen.
+  Send framed window to forward virtual screen.
 
 - Ctrl-Alt-a
 
-  Send focused window to backward virtual screen.
+  Send framed window to backward virtual screen.
 
 - Ctrl-Alt-t
 

@@ -47,6 +47,9 @@ KEY_BINDS = {
         'method': 'cb_focus_next_window',
         'args': FORWARD
     },
+    ('r', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_raise_window'
+    },
     ('1', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_exec_subprocess',
         'args': 'urxvt &'
@@ -562,6 +565,10 @@ class hogeWM:
     def cb_focus_next_window(self, event, args):
         window = self.framed_window
         self.focus_next_window(window, args)
+
+    def cb_raise_window(self, event):
+        window = event.child
+        self.focus_window(window)
 
     def cb_maximize_window(self, event, args):
         debug('debug: cb_maximize_window called')
