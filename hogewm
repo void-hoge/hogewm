@@ -62,6 +62,10 @@ KEY_BINDS = {
         'method': 'cb_exec_subprocess',
         'args': 'google-chrome &'
     },
+    ('v', X.Mod1Mask | X.ControlMask):{
+        'method': 'cb_exec_subprocess',
+        'args': 'pkill hogemonitor || hogemonitor &'
+    },
     ('m', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_maximize_window',
         'args': HORIZONTAL | VERTICAL
@@ -305,7 +309,7 @@ class hogeWM:
         self.current_window = self.managed_windows.index(window)
         self.draw_frame_windows(window)
 
-    def focus_next_window(self, window, direction):
+    def focus_next_window(self, window, direction=FORWARD):
         debug('debug: focus_next_window called')
         if len(self.exposed_windows) == 0:
             return
@@ -390,10 +394,10 @@ class hogeWM:
         y = geom.y
         width = geom.width
         height = geom.height
-        if mask & VERTICAL is not 0:
+        if mask & VERTICAL != 0:
             y = monitor.y
             height = monitor.height
-        if mask & HORIZONTAL is not 0:
+        if mask & HORIZONTAL != 0:
             x = monitor.x
             width = monitor.width
         window.configure(
@@ -499,6 +503,7 @@ class hogeWM:
                 self.exposed_windows.append(window)
             else:
                 window.unmap()
+        self.focus_next_window(self.framed_window)
 
     def send_window_to_next_vscreen(self, window, direction):
         if window not in self.exposed_windows:
@@ -734,6 +739,8 @@ class hogeWM:
 
 def main():
     wm = hogeWM()
+    for win in wm.managed_windows:
+        print(wm.get_window_name(win))
     wm.loop()
 
 if __name__ == '__main__':
