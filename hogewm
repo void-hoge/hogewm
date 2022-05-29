@@ -64,7 +64,7 @@ KEY_BINDS = {
     },
     ('v', X.Mod1Mask | X.ControlMask):{
         'method': 'cb_exec_subprocess',
-        'args': 'pkill hogemonitor || hogemonitor &'
+        'args': 'pkill hogemonitor || hogemonitor 1 &'
     },
     ('m', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_maximize_window',
