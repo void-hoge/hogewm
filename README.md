@@ -2,6 +2,31 @@
 - hogewm is a simple X11 window manager written in Python3
 - This wm is based on xpywm(https://github.com/h-ohsaki/xpywm.git )
 
+## REQUIREMENTS
+- requiered
+  - python-xlib (https://pypi.org/project/python-xlib/ )
+  - rxvt-unicode
+- optional (recommended)
+  - emacs
+  - google-chrome
+  - Roboto Mono Medium for Powerline
+  - imagemagick
+  - hogemonitor (https://github.com/void-hoge/hogemonitor.git )
+
+## INSTALLATION
+```
+$ sudo apt install xbase-clients rxvt-unicode imagemagick emacs
+$ sudo apt install /google/chrome/installer.deb
+$ cd
+$ git clone https://github.com/powerline/fonts.git
+$ cd fonts
+$ ./install.sh
+$ cd
+$ git clone https://github.com/void-hoge/hogewm.git
+$ cp hogewm/home/.* $HOME
+```
+- `startx` to start.
+
 ## KEY_BINDS
 - Alt-Button1
 
@@ -82,6 +107,10 @@
 - Ctrl-Alt-t
 
   Tile all windows on a monitor that has a framed window.
+
+- Ctrl-Alt-v
+
+  Toggle hogemonitor.
 
 ## LICENSE
 - GPLv3

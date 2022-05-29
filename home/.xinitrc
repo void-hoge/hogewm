@@ -7,8 +7,6 @@ xmodmap $HOME/.Xmodmap
 xset r rate 200 40
 setxkbmap -option ctrl:nocaps -option terminate:ctrl_alt_bksp
 
-redshift -l 35:135 &
-
 $HOME/hogewm/hogewm 2> $HOME/hogewm/debug.log &
 emacs &
 urxvt -geometry 80x35-64-0
