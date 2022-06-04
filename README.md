@@ -5,8 +5,8 @@
 ## REQUIREMENTS
 - requiered
   - python-xlib (https://pypi.org/project/python-xlib/ )
-  - rxvt-unicode
 - optional (recommended)
+  - rxvt-unicode
   - emacs
   - google-chrome
   - Roboto Mono Medium for Powerline
@@ -38,7 +38,7 @@ $ cp hogewm/home/.* $HOME
 
 - Ctrl-Alt-i
 
-  Select next window.
+  Select next window. If it is within a certain period of time (WINDOW_SELECTION_INTERVAL) from the previous window selection, it will be selected normally. If not, the most recently used window will be selected.
 
 - Ctrl-Alt-r
 

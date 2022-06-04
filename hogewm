@@ -5,6 +5,7 @@ import sys
 import subprocess
 import re
 import datetime
+import time
 import math
 from Xlib import X, XK, display
 
@@ -28,6 +29,8 @@ FRAME_COLOR = 'white'
 FRAME_THICKNESS = 2
 
 SCREENSHOT_DIR = '{}/screenshots'.format(os.getenv('HOME'))
+
+WINDOW_SELECTION_INTERVAL = 0.5
 
 EVENTS = {
     X.ButtonPress: 'handle_button_press',
@@ -159,6 +162,7 @@ class hogeWM:
         self.current_vscreen = 0
         self.frame_windows = {}
         self.framed_window = {}
+        self.last_selection_time = time.time()
 
         self.monitor_sizes = []
         self.max_size = None
@@ -180,7 +184,7 @@ class hogeWM:
                                            X.EnterWindowMask |
                                            X.LeaveWindowMask |
                                            X.FocusChangeMask )
-                                           
+
     def grab_keys(self):
         debug('debug: grab_keys called')
         for (key, modifier), rule in KEY_BINDS.items():
@@ -295,9 +299,18 @@ class hogeWM:
         if window in self.managed_windows:
             debug('unmanaged')
             self.managed_windows.remove(window)
-            self.current_window = -1
+            self.current_window_idx = -1
         if window in self.exposed_windows:
             self.exposed_windows.remove(window)
+
+    def sort_exposed_windows(self):
+        def sort_key(window):
+            geom = self.get_window_geometry(window)
+        if geom is None:
+            return 1<<31
+        else:
+            return geom.x * self.max_size.height + geom.y
+        self.exposed_windows = sorted(self.exposed_windows, key=sort_key)
 
     def focus_window(self, window):
         debug('debug: focus_window called')
@@ -306,29 +319,22 @@ class hogeWM:
         debug('debug: focused {}'.format(self.get_window_name(window)))
         window.set_input_focus(X.RevertToParent, 0)
         window.configure(stack_mode=X.Above)
-        self.current_window = self.managed_windows.index(window)
+        self.current_window_idx = self.managed_windows.index(window)
         self.draw_frame_windows(window)
 
     def focus_next_window(self, window, direction=FORWARD):
         debug('debug: focus_next_window called')
         if len(self.exposed_windows) == 0:
             return
-        def sort_key(window):
-            geom = self.get_window_geometry(window)
-            if geom is None:
-                return 1<<31
-            else:
-                return geom.x * self.max_size.height + geom.y
-        windows = sorted(self.exposed_windows, key=sort_key)
-        if window in windows:
-            idx = windows.index(window)
+        if window in self.exposed_windows:
+            idx = self.exposed_windows.index(window)
             if direction == FORWARD:
-                idx = (idx+1)%len(windows)
+                idx = (idx+1)%len(self.exposed_windows)
             else:
                 idx-=1
-            next_window = windows[idx]
+            next_window = self.exposed_windows[idx]
         else:
-            next_window = windows[-1]
+            next_window = self.exposed_windows[-1]
         self.focus_window(next_window)
         next_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
@@ -503,7 +509,7 @@ class hogeWM:
                 self.exposed_windows.append(window)
             else:
                 window.unmap()
-        self.focus_next_window(self.framed_window)
+        self.focus_window(self.framed_window)
 
     def send_window_to_next_vscreen(self, window, direction):
         if window not in self.exposed_windows:
@@ -563,17 +569,37 @@ class hogeWM:
                     y = monitor.y + monitor.height*row//nrows
                 win.configure(x=x, y=y, width=width, height=height)
 
+    def set_window_to_stack_top(self, window):
+        if window not in self.exposed_windows:
+            return
+        idx = self.exposed_windows.index(window)
+        self.exposed_windows.pop(idx)
+        self.exposed_windows.insert(0, window)
+
+    def cb_set_framed_window_to_stack_top(self, event):
+        self.set_window_to_stack_top(self.framed_window)
+
     def cb_exec_subprocess(self, event, args):
         debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
         os.system(args)
 
     def cb_focus_next_window(self, event, args):
         window = self.framed_window
-        self.focus_next_window(window, args)
+        now = time.time()
+        if (now - self.last_selection_time) < WINDOW_SELECTION_INTERVAL:
+            self.focus_next_window(window, args)
+        else:
+            try:
+                self.set_window_to_stack_top(window)
+                self.focus_next_window(self.exposed_windows[0], args)
+            except:
+                pass
+        self.last_selection_time = now
 
     def cb_raise_window(self, event):
         window = event.child
         self.focus_window(window)
+        self.set_window_to_stack_top(window)
 
     def cb_maximize_window(self, event, args):
         debug('debug: cb_maximize_window called')
@@ -606,6 +632,7 @@ class hogeWM:
         debug('debug: cb_swap_windows_bw_monitors called')
         for window in self.exposed_windows:
             self.move_window_to_next_monitor(window)
+        self.focus_window(self.framed_window)
 
     def cb_destroy_window(self, event):
         debug('debug: cb_destroy_window called')
@@ -629,6 +656,7 @@ class hogeWM:
     def cb_select_vscreen(self, event, args):
         debug('debug: cb_select_vscreen called')
         self.select_vscreen(args)
+        self.sort_exposed_windows()
 
     def cb_send_window_to_next_vscreen(self, event, args):
         debug('debug: cb_send_window_to_next_screen called')
@@ -636,6 +664,7 @@ class hogeWM:
         vscreen = self.send_window_to_next_vscreen(window, args)
         if vscreen is not None:
             self.select_vscreen(vscreen)
+            self.sort_exposed_windows()
 
     def cb_tile_windows(self, event):
         debug('debug: cb_tile_windows called')
@@ -704,10 +733,10 @@ class hogeWM:
         rule = self.keybinds.get(entry, None)
         if rule is None:
             return
-        debug('debug: key -> {}, rule -> {}'.format(keycode, rule))
         method = getattr(self, rule['method'], None)
         args = rule.get('args', None)
         if method:
+            debug('debug: key -> {}, rule -> {}'.format(keycode, rule))
             if args is not None:
                 method(event, args)
             else:
@@ -740,7 +769,7 @@ class hogeWM:
 def main():
     wm = hogeWM()
     for win in wm.managed_windows:
-        print(wm.get_window_name(win))
+        print(wm.get_window_name(win), file=sys.stderr)
     wm.loop()
 
 if __name__ == '__main__':
