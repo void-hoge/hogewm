@@ -38,7 +38,7 @@ $ cp hogewm/home/.* $HOME
 
 - Ctrl-Alt-i
 
-  Select next window. If it is within a certain period of time (WINDOW_SELECTION_INTERVAL) from the previous window selection, it will be selected normally. If not, the most recently used window will be selected.
+  Select next window.
 
 - Ctrl-Alt-r
 

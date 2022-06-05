@@ -5,7 +5,6 @@ import sys
 import subprocess
 import re
 import datetime
-import time
 import math
 from Xlib import X, XK, display
 
@@ -42,6 +41,7 @@ EVENTS = {
     X.MapRequest: 'handle_map_request',
     X.DestroyNotify: 'handle_destroy_notify',
     X.KeyPress: 'handle_key_press',
+    X.KeyRelease: 'handle_key_release',
     X.ConfigureRequest: 'handle_configure_request'
 }
 
@@ -162,7 +162,8 @@ class hogeWM:
         self.current_vscreen = 0
         self.frame_windows = {}
         self.framed_window = {}
-        self.last_selection_time = time.time()
+        self.is_selection_mode_enabled = False
+        self.pressed_keys = set()
 
         self.monitor_sizes = []
         self.max_size = None
@@ -173,6 +174,18 @@ class hogeWM:
         self.create_frame_windows()
         self.parse_available_monitor_sizes()
 
+        self.mod_string = ['shift', 'lock', 'control', 'mod1', 'mod2', 'mod3', 'mod4', 'mod5']
+        self.mod_mask_string = {X.ShiftMask: 'shift',
+                                X.LockMask: 'lock',
+                                X.ControlMask: 'control',
+                                X.Mod1Mask: 'mod1',
+                                X.Mod2Mask: 'mod2',
+                                X.Mod3Mask: 'mod3',
+                                X.Mod4Mask: 'mod4',
+                                X.Mod5Mask: 'mod5'}
+        self.modmap = {}
+        self.parse_xmodmap()
+        
         for child in self.screen.root.query_tree().children:
             if child.get_attributes().map_state:
                 self.manage_window(child)
@@ -183,7 +196,8 @@ class hogeWM:
                                            X.SubstructureNotifyMask |
                                            X.EnterWindowMask |
                                            X.LeaveWindowMask |
-                                           X.FocusChangeMask )
+                                           X.FocusChangeMask
+                                           )
 
     def grab_keys(self):
         debug('debug: grab_keys called')
@@ -306,10 +320,10 @@ class hogeWM:
     def sort_exposed_windows(self):
         def sort_key(window):
             geom = self.get_window_geometry(window)
-        if geom is None:
-            return 1<<31
-        else:
-            return geom.x * self.max_size.height + geom.y
+            if geom is None:
+                return 1<<31
+            else:
+                return geom.x * self.max_size.height + geom.y
         self.exposed_windows = sorted(self.exposed_windows, key=sort_key)
 
     def focus_window(self, window):
@@ -389,6 +403,19 @@ class hogeWM:
                     max_height = y+height
                 self.monitor_sizes.append(monitor_geometry(x, y, width, height))
         self.max_size = monitor_geometry(0, 0, max_width, max_height)
+
+    def parse_xmodmap(self):
+        out = subprocess.getoutput('xmodmap')
+        for modifier in self.mod_string:
+            self.modmap[modifier] = []
+            match = re.search(r'{} +(.+\(0x[0-9a-f]+\)(,  )?)+'.format(modifier), out)
+            if match == None:
+                continue
+            keys = re.findall(r'([^?!,.]+ \(0x[0-9a-f]+\))', match.group(1))
+            for k in keys:
+                m = re.search(r'0x([0-9a-f]+)', k)
+                value = int(m.group(0), 16)
+                self.modmap[modifier].append(value)
 
     def maximize_window(self, window, mask):
         if window not in self.managed_windows:
@@ -585,16 +612,23 @@ class hogeWM:
 
     def cb_focus_next_window(self, event, args):
         window = self.framed_window
-        now = time.time()
-        if (now - self.last_selection_time) < WINDOW_SELECTION_INTERVAL:
-            self.focus_next_window(window, args)
+        if self.is_selection_mode_enabled:
+            # select normally
+            self.focus_next_window(self.framed_window, args)
         else:
+            # enable selection mode
+            self.is_selection_mode_enabled = True
+            self.screen.root.grab_keyboard(True, X.GrabModeAsync, X.GrabModeAsync, X.CurrentTime)
+            self.set_window_to_stack_top(window)
             try:
-                self.set_window_to_stack_top(window)
-                self.focus_next_window(self.exposed_windows[0], args)
+                self.focus_next_window(self.exposed_windows[0])
             except:
                 pass
-        self.last_selection_time = now
+            modifier = event.state
+            self.pressed_keys = set()
+            for i in range(len(self.mod_string)+1):
+                if 1<<i & modifier:
+                    self.pressed_keys = self.pressed_keys | {self.mod_mask_string[1<<i]}
 
     def cb_raise_window(self, event):
         window = event.child
@@ -741,6 +775,22 @@ class hogeWM:
                 method(event, args)
             else:
                 method(event)
+
+    def handle_key_release(self, event):
+        debug('debug: handle_key_release called')
+        keycode = event.detail
+        modgroup = None
+        for mod, keys in self.modmap.items():
+            if keycode in keys:
+                modgroup = mod
+                break
+        if modgroup == None:
+            return
+        self.pressed_keys = self.pressed_keys - {modgroup}
+        if self.pressed_keys & {'control', 'mod1'} == set():
+            # disable selection mode
+            self.display.ungrab_keyboard(X.CurrentTime)
+            self.is_selection_mode_enabled = False
 
     def handle_configure_request(self, event):
         window = event.window
