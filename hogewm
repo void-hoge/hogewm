@@ -29,8 +29,6 @@ FRAME_THICKNESS = 2
 
 SCREENSHOT_DIR = '{}/screenshots'.format(os.getenv('HOME'))
 
-WINDOW_SELECTION_INTERVAL = 0.5
-
 EVENTS = {
     X.ButtonPress: 'handle_button_press',
     X.ButtonRelease: 'handle_button_release',
