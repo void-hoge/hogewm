@@ -627,7 +627,7 @@ class hogeWM:
             modifier = event.state
             self.pressed_keys = set()
             for i in range(len(self.mod_string)+1):
-                if 1<<i & modifier:
+                if 1<<i & modifier is not 0:
                     self.pressed_keys = self.pressed_keys | {self.mod_mask_string[1<<i]}
 
     def cb_raise_window(self, event):
@@ -786,8 +786,7 @@ class hogeWM:
                 break
         if modgroup == None:
             return
-        self.pressed_keys = self.pressed_keys - {modgroup}
-        if self.pressed_keys & {'control', 'mod1'} == set():
+        if modgroup in self.pressed_keys:
             # disable selection mode
             self.display.ungrab_keyboard(X.CurrentTime)
             self.is_selection_mode_enabled = False
