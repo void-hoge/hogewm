@@ -27,6 +27,8 @@ MAX_VSCREEN = 3
 FRAME_COLOR = 'white'
 FRAME_THICKNESS = 2
 
+FONT = '-misc-fixed-bold-r-normal--18-120-100-100-c-90-iso10646-1'
+
 SCREENSHOT_DIR = '{}/screenshots'.format(os.getenv('HOME'))
 
 EVENTS = {
@@ -159,7 +161,7 @@ class hogeWM:
         self.window_vscreen = {}
         self.current_vscreen = 0
         self.frame_windows = {}
-        self.framed_window = {}
+        self.framed_window = None
         self.is_selection_mode_enabled = False
         self.pressed_keys = set()
 
@@ -171,6 +173,11 @@ class hogeWM:
         self.grab_buttons()
         self.create_frame_windows()
         self.parse_available_monitor_sizes()
+
+        self.create_selection_window()
+        self.font = self.display.open_font(FONT)
+        self.white_gc = self.selection_window.create_gc(font=self.font, foreground=self.screen.white_pixel)
+        self.black_gc = self.selection_window.create_gc(font=self.font, foreground=self.screen.black_pixel)
 
         self.mod_string = ['shift', 'lock', 'control', 'mod1', 'mod2', 'mod3', 'mod4', 'mod5']
         self.mod_mask_string = {X.ShiftMask: 'shift',
@@ -187,6 +194,7 @@ class hogeWM:
         for child in self.screen.root.query_tree().children:
             if child.get_attributes().map_state:
                 self.manage_window(child)
+        self.sort_exposed_windows()
 
     def catch_events(self):
         self.screen.root.change_attributes(event_mask =
@@ -222,8 +230,8 @@ class hogeWM:
                 0,0,16,16,0,
                 self.screen.root_depth,
                 X.InputOutput,
-                background_pixel = frame_pixel,
-                override_redirect = 1)
+                background_pixel=frame_pixel,
+                override_redirect=True)
             window.map()
             self.frame_windows[side] = window
 
@@ -261,7 +269,49 @@ class hogeWM:
                 stack_mode=X.Above)
             self.frame_windows[side].map()
         self.framed_window = window
-        
+
+    def create_selection_window(self, monitor=1):
+        monitor = self.monitor_sizes[monitor%len(self.monitor_sizes)]
+        width = monitor.width//3
+        height = 10
+        x = monitor.x+monitor.width//3
+        y = monitor.y+monitor.height//3
+        self.selection_window = self.screen.root.create_window(
+            x,y,width,height,0,
+            self.screen.root_depth,
+            X.InputOutput,
+            background_pixel=self.screen.black_pixel,
+            override_redirect=True)
+        self.selection_window.change_attributes(backing_store=X.Always)
+
+    def update_selection_window(self):
+        self.selection_window.map()
+        geom = self.get_window_geometry(self.selection_window)
+        if geom == None:
+            return
+        self.selection_window.configure(
+            x=geom.x,
+            y=geom.y,
+            width=geom.width,
+            height=20*len(self.exposed_windows))
+        self.selection_window.clear_area(0,0,geom.width,geom.height)
+        for i in range(len(self.exposed_windows)):
+            win = self.exposed_windows[i]
+            win_name = '{}: 0x{:x}'.format(self.get_window_class(win), win.id)
+            chars = [c.encode() for c in list(win_name)]
+            if win == self.framed_window:
+                self.selection_window.fill_rectangle(
+                    self.white_gc,0,20*i,geom.width,20)
+                self.selection_window.poly_text(
+                    self.black_gc,20,20*(i+1)-5,chars)
+            else:
+                self.selection_window.poly_text(
+                    self.white_gc,20,20*(i+1)-5,chars)
+        self.selection_window.configure(stack_mode=X.Above)
+
+    def unmap_selection_window(self):
+        self.selection_window.unmap()
+
     def get_window_attributes(self, window):
         try:
             return window.get_attributes()
@@ -613,6 +663,7 @@ class hogeWM:
         if self.is_selection_mode_enabled:
             # select normally
             self.focus_next_window(self.framed_window, args)
+            self.update_selection_window()
         else:
             # enable selection mode
             self.is_selection_mode_enabled = True
@@ -627,6 +678,7 @@ class hogeWM:
             for i in range(len(self.mod_string)+1):
                 if 1<<i & modifier is not 0:
                     self.pressed_keys = self.pressed_keys | {self.mod_mask_string[1<<i]}
+            self.update_selection_window()
 
     def cb_raise_window(self, event):
         window = event.child
@@ -788,6 +840,7 @@ class hogeWM:
             # disable selection mode
             self.display.ungrab_keyboard(X.CurrentTime)
             self.is_selection_mode_enabled = False
+            self.unmap_selection_window()
 
     def handle_configure_request(self, event):
         window = event.window
