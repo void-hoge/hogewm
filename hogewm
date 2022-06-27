@@ -190,7 +190,7 @@ class hogeWM:
                                 X.Mod5Mask: 'mod5'}
         self.modmap = {}
         self.parse_xmodmap()
-        
+
         for child in self.screen.root.query_tree().children:
             if child.get_attributes().map_state:
                 self.manage_window(child)
@@ -202,8 +202,7 @@ class hogeWM:
                                            X.SubstructureNotifyMask |
                                            X.EnterWindowMask |
                                            X.LeaveWindowMask |
-                                           X.FocusChangeMask
-                                           )
+                                           X.FocusChangeMask )
 
     def grab_keys(self):
         debug('debug: grab_keys called')
@@ -285,7 +284,6 @@ class hogeWM:
         self.selection_window.change_attributes(backing_store=X.Always)
 
     def update_selection_window(self):
-        self.selection_window.map()
         geom = self.get_window_geometry(self.selection_window)
         if geom == None:
             return
@@ -295,22 +293,19 @@ class hogeWM:
             width=geom.width,
             height=20*len(self.exposed_windows))
         self.selection_window.clear_area(0,0,geom.width,geom.height)
+        idx = self.exposed_windows.index(self.framed_window)
         for i in range(len(self.exposed_windows)):
             win = self.exposed_windows[i]
-            win_name = '{}: 0x{:x}'.format(self.get_window_class(win), win.id)
+            win_name = '{}: 0x{:x}'.format(self.get_window_class(win)[:50], win.id)
             chars = [c.encode() for c in list(win_name)]
-            if win == self.framed_window:
-                self.selection_window.fill_rectangle(
-                    self.white_gc,0,20*i,geom.width,20)
-                self.selection_window.poly_text(
-                    self.black_gc,20,20*(i+1)-5,chars)
-            else:
-                self.selection_window.poly_text(
-                    self.white_gc,20,20*(i+1)-5,chars)
+            self.selection_window.poly_text(self.white_gc,20,20*(i+1)-5,chars)
+        win_name = '{}: 0x{:x}'.format(self.get_window_class(self.framed_window)[:50], win.id)
+        chars = [c.encode() for c in list(win_name)]
+        self.selection_window.fill_rectangle(
+            self.white_gc,0,20*idx,geom.width,20)
+        self.selection_window.poly_text(
+            self.black_gc,20,20*(idx+1)-5,chars)
         self.selection_window.configure(stack_mode=X.Above)
-
-    def unmap_selection_window(self):
-        self.selection_window.unmap()
 
     def get_window_attributes(self, window):
         try:
@@ -327,7 +322,7 @@ class hogeWM:
             return cls
         else:
             return ''
-        
+
     def get_window_name(self, window):
         try:
             return 'id->0x{:x}, name->\'{}\''.format(window.id, self.get_window_class(window))
@@ -562,13 +557,13 @@ class hogeWM:
                 return
         now = datetime.datetime.now()
         date = '{}-{}-{}_{}:{}:{}.{}'.format(
-            now.year,
-            now.month,
-            now.day,
-            now.hour,
-            now.minute,
-            now.second,
-            now.microsecond)
+            str(now.year).zfill(4),
+            str(now.month).zfill(2),
+            str(now.day).zfill(2),
+            str(now.hour).zfill(2),
+            str(now.minute).zfill(2),
+            str(now.second).zfill(2),
+            str(now.microsecond).zfill(6))
         os.system('xwd {} | convert xwd:- {}/capture{}.png'.format(screen, SCREENSHOT_DIR, date))
 
     def select_vscreen(self, num):
@@ -603,7 +598,7 @@ class hogeWM:
         self.exposed_windows.remove(window)
         return vscreen
 
-    def get_title_layout(self, tile_num):
+    def get_tile_layout(self, tile_num):
         tmp = int(math.sqrt(tile_num))
         # (row, col)
         if tmp**2 == tile_num:
@@ -621,7 +616,7 @@ class hogeWM:
         def sort_key(window):
             return window.id
         target_windows.sort(key=sort_key)
-        nrows, ncols = self.get_title_layout(len(target_windows))
+        nrows, ncols = self.get_tile_layout(len(target_windows))
         offcuts_num = nrows*ncols - len(target_windows)
         eidx = None
         for i in range(len(target_windows)):
@@ -651,19 +646,16 @@ class hogeWM:
         self.exposed_windows.pop(idx)
         self.exposed_windows.insert(0, window)
 
-    def cb_set_framed_window_to_stack_top(self, event):
-        self.set_window_to_stack_top(self.framed_window)
-
     def cb_exec_subprocess(self, event, args):
         debug('debug: cb_exec_subprocess called. args -> {}'.format(args))
         os.system(args)
 
     def cb_focus_next_window(self, event, args):
         window = self.framed_window
+        # self.selection_window.map()
         if self.is_selection_mode_enabled:
             # select normally
             self.focus_next_window(self.framed_window, args)
-            self.update_selection_window()
         else:
             # enable selection mode
             self.is_selection_mode_enabled = True
@@ -678,7 +670,7 @@ class hogeWM:
             for i in range(len(self.mod_string)+1):
                 if 1<<i & modifier is not 0:
                     self.pressed_keys = self.pressed_keys | {self.mod_mask_string[1<<i]}
-            self.update_selection_window()
+        # self.update_selection_window()
 
     def cb_raise_window(self, event):
         window = event.child
@@ -702,7 +694,7 @@ class hogeWM:
             self.draw_frame_windows(window)
         except:
             return
-        
+
     def cb_move_window_to_next_monitor(self, event):
         debug('debug: cb_move_window_to_next_monitor called')
         window = self.framed_window
@@ -840,7 +832,7 @@ class hogeWM:
             # disable selection mode
             self.display.ungrab_keyboard(X.CurrentTime)
             self.is_selection_mode_enabled = False
-            self.unmap_selection_window()
+            # self.selection_window.unmap()
 
     def handle_configure_request(self, event):
         window = event.window
