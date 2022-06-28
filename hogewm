@@ -752,6 +752,10 @@ class hogeWM:
         debug('debug: handle_motion_notify called')
         xd = event.root_x - self.start.root_x
         yd = event.root_y - self.start.root_y
+        if event.child == X.NONE:
+            return
+        if event.child in self.frame_windows.values():
+            return
         if self.start.detail == 1:
             # move
             self.start.child.configure(
@@ -766,7 +770,7 @@ class hogeWM:
 
     def handle_button_press(self, event):
         debug('debug: handle_button_press called')
-        if event.child == X.NONE:
+        if event.child in self.frame_windows.values():
             return
         self.screen.root.grab_pointer(True, X.PointerMotionMask | X.ButtonReleaseMask,
             X.GrabModeAsync, X.GrabModeAsync, X.NONE, X.NONE, 0)
