@@ -9,4 +9,5 @@ setxkbmap -option ctrl:nocaps -option terminate:ctrl_alt_bksp
 
 $HOME/hogewm/hogewm 2> $HOME/hogewm/debug.log &
 emacs &
-urxvt -geometry 80x35-64-0
+urxvt -geometry 80x35-64-0 &
+$HOME/hogewm/eternal_sleep

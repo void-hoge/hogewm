@@ -5,12 +5,16 @@ import sys
 import subprocess
 import re
 import datetime
+import time
 import math
 from Xlib import X, XK, display
 
 INIT_PTR_POS = 30
 WINDOW_MIN_WIDTH = 1920/4
 WINDOW_MIN_HEIGHT = 1080/4
+
+DRAG_INTERVAL = 1/60
+
 LEFT = 1
 RIGHT = 2
 UPPER = 4
@@ -164,6 +168,8 @@ class hogeWM:
         self.framed_window = None
         self.is_selection_mode_enabled = False
         self.pressed_keys = set()
+
+        self.last_dragged_time = time.time()
 
         self.monitor_sizes = []
         self.max_size = None
@@ -754,6 +760,10 @@ class hogeWM:
         yd = event.root_y - self.start.root_y
         if event.child == X.NONE:
             return
+        now = time.time()
+        if now - self.last_dragged_time < DRAG_INTERVAL:
+            return
+        self.last_dragged_time = now
         if event.child in self.frame_windows.values():
             return
         if self.start.detail == 1:
@@ -770,12 +780,14 @@ class hogeWM:
 
     def handle_button_press(self, event):
         debug('debug: handle_button_press called')
-        if event.child in self.frame_windows.values():
+        window = event.child
+        if window in self.frame_windows.values():
             return
         self.screen.root.grab_pointer(True, X.PointerMotionMask | X.ButtonReleaseMask,
             X.GrabModeAsync, X.GrabModeAsync, X.NONE, X.NONE, 0)
+        self.focus_window(window)
         self.start = event
-        self.start_geom = self.get_window_geometry(event.child)
+        self.start_geom = self.get_window_geometry(window)
 
     def handle_button_release(self, event):
         debug('debug: handle_button_release called')
