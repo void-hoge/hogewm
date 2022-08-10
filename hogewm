@@ -758,7 +758,7 @@ class hogeWM:
         debug('debug: handle_motion_notify called')
         xd = event.root_x - self.start.root_x
         yd = event.root_y - self.start.root_y
-        if event.child == X.NONE:
+        if self.start.child == X.NONE:
             return
         now = time.time()
         if now - self.last_dragged_time < DRAG_INTERVAL:
