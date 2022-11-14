@@ -111,6 +111,14 @@ $ cp hogewm/home/.* $HOME
 - Ctrl-Alt-v
 
   Toggle hogemonitor.
+  
+- Ctrl-Alt-Delete
+
+  Restart hogewm.
+
+- Ctrl-Alt-Home
+
+  Reconfigure external outputs.
 
 ## LICENSE
 - GPLv3
