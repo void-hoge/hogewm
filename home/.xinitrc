@@ -5,7 +5,7 @@ xrdb $HOME/.Xdefaults
 xmodmap $HOME/.Xmodmap
 
 xset r rate 200 40
-setxkbmap -option ctrl:nocaps -option terminate:ctrl_alt_bksp
+setxkbmap -option ctrl:nocaps
 
 $HOME/hogewm/hogewm 2> $HOME/hogewm/debug.log &
 emacs &
