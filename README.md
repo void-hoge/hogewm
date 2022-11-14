@@ -115,5 +115,5 @@ $ cp hogewm/home/.* $HOME
 ## LICENSE
 - GPLv3
 
-## AUTHER
+## AUTHOR
 - void-hoge
