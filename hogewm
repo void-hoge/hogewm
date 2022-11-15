@@ -180,10 +180,16 @@ class hogeWM:
 
         self.create_selection_window()
         self.font = self.display.open_font(FONT)
-        self.white_gc =self.selection_window.create_gc(font=self.font, foreground=self.screen.white_pixel)
-        self.black_gc = self.selection_window.create_gc(font=self.font, foreground=self.screen.black_pixel)
+        self.white_gc =self.selection_window.create_gc(
+            font=self.font,foreground=self.screen.white_pixel)
+        self.black_gc = self.selection_window.create_gc(
+            font=self.font, foreground=self.screen.black_pixel)
 
-        self.mod_string = ['shift', 'lock', 'control', 'mod1', 'mod2', 'mod3', 'mod4', 'mod5']
+        self.mod_string = [
+            'shift', 'lock',
+            'control', 'mod1',
+            'mod2', 'mod3',
+            'mod4', 'mod5']
         self.mod_mask_string = {X.ShiftMask: 'shift',
                                 X.LockMask: 'lock',
                                 X.ControlMask: 'control',
@@ -304,7 +310,8 @@ class hogeWM:
             win_name = '{}: 0x{:x}'.format(self.get_window_class(win)[:50], win.id)
             chars = [c.encode() for c in list(win_name)]
             self.selection_window.poly_text(self.white_gc,20,20*(i+1)-5,chars)
-        win_name = '{}: 0x{:x}'.format(self.get_window_class(self.framed_window)[:50], win.id)
+        win_name = '{self.get_window_class(self.framed_window)[:50]}: 0x{:x}'\
+            .format(self.get_window_class(self.framed_window)[:50], win.id)
         chars = [c.encode() for c in list(win_name)]
         self.selection_window.fill_rectangle(
             self.white_gc,0,20*idx,geom.width,20)
@@ -354,14 +361,14 @@ class hogeWM:
         self.exposed_windows.append(window)
         self.window_vscreen[window] = self.current_vscreen
         window.map()
-        window.change_attributes(event_mask=X.EnterWindowMask | X.LeaveWindowMask)
+        window.change_attributes(event_mask=X.EnterWindowMask |
+                                 X.LeaveWindowMask)
 
     def unmanage_window(self, window):
         debug('debug: unmanage_window called')
         if window in self.managed_windows:
             debug('unmanaged')
             self.managed_windows.remove(window)
-            self.current_window_idx = -1
         if window in self.exposed_windows:
             self.exposed_windows.remove(window)
 
@@ -381,7 +388,6 @@ class hogeWM:
         debug('debug: focused {}'.format(self.get_window_name(window)))
         window.set_input_focus(X.RevertToParent, 0)
         window.configure(stack_mode=X.Above)
-        self.current_window_idx = self.managed_windows.index(window)
         self.draw_frame_windows(window)
 
     def focus_next_window(self, window, direction=FORWARD):
@@ -415,12 +421,16 @@ class hogeWM:
         for monitor in self.monitor_geometries.values():
             # horizontal(width)
             h_sum = monitor['width'] + geom.width
-            h_cover = (h_sum-abs(monitor['x']-geom.x)-abs((monitor['x']+monitor['width']) - (geom.x+geom.width)))/2
+            h_cover = (h_sum-abs(monitor['x']-geom.x)-
+                       abs((monitor['x']+monitor['width'])-
+                           (geom.x+geom.width)))/2
             if h_cover < 0:
                 h_cover = 0
             # vertical(height)
             v_sum = monitor['height'] + geom.height
-            v_cover = (v_sum-abs(monitor['y']-geom.y)-abs((monitor['y']+monitor['height']) - (geom.y+geom.height)))/2
+            v_cover = (v_sum-abs(monitor['y']-geom.y)-
+                       abs((monitor['y']+monitor['height'])-
+                           (geom.y+geom.height)))/2
             if v_cover < 0:
                 v_cover = 0
             cover = h_cover * v_cover
@@ -614,7 +624,6 @@ class hogeWM:
             y=y,
             width=width,
             height=height)
-        window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
     def move_window_to_next_monitor(self, window):
         if window not in self.exposed_windows:
@@ -709,7 +718,8 @@ class hogeWM:
             if 'emacs' in self.get_window_class(target_windows[i]).lower():
                 eidx = i
         if eidx is not None:
-            target_windows[eidx], target_windows[ncols*(nrows-1)-1] = target_windows[ncols*(nrows-1)-1], target_windows[eidx]
+            target_windows[eidx], target_windows[ncols*(nrows-1)-1] = \
+                target_windows[ncols*(nrows-1)-1], target_windows[eidx]
         for row in reversed(range(nrows)):
             for col in reversed(range(ncols)):
                 if not target_windows:
@@ -724,7 +734,6 @@ class hogeWM:
                     height = monitor['height']//nrows
                     y = monitor['y'] + monitor['height']*row//nrows
                 win.configure(x=x, y=y, width=width, height=height)
-        self.framed_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
     def set_window_to_stack_top(self, window):
         if window not in self.exposed_windows:
@@ -742,7 +751,9 @@ class hogeWM:
         else:
             # enable selection mode
             self.is_selection_mode_enabled = True
-            self.screen.root.grab_keyboard(True, X.GrabModeAsync, X.GrabModeAsync, X.CurrentTime)
+            self.screen.root.grab_keyboard(True, X.GrabModeAsync,
+                                           X.GrabModeAsync,
+                                           X.CurrentTime)
             self.set_window_to_stack_top(window)
             try:
                 self.focus_next_window(self.exposed_windows[0])
@@ -752,7 +763,8 @@ class hogeWM:
             self.pressed_keys = set()
             for i in range(len(self.mod_string)+1):
                 if 1<<i & modifier != 0:
-                    self.pressed_keys = self.pressed_keys | {self.mod_mask_string[1<<i]}
+                    self.pressed_keys = self.pressed_keys | \
+                        {self.mod_mask_string[1<<i]}
         # self.update_selection_window()
 
     def cb_raise_window(self, event):
@@ -803,6 +815,7 @@ class hogeWM:
         try:
             self.destroy_window(window)
             self.focus_next_window(window)
+            window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
         except:
             return
 
@@ -870,8 +883,12 @@ class hogeWM:
         window = event.child
         if window in self.frame_windows.values():
             return
-        self.screen.root.grab_pointer(True, X.PointerMotionMask | X.ButtonReleaseMask,
-            X.GrabModeAsync, X.GrabModeAsync, X.NONE, X.NONE, 0)
+        self.screen.root.grab_pointer(True,
+                                      X.PointerMotionMask |
+                                      X.ButtonReleaseMask,
+                                      X.GrabModeAsync,
+                                      X.GrabModeAsync,
+                                      X.NONE, X.NONE, 0)
         self.focus_window(window)
         self.start = event
         self.start_geom = self.get_window_geometry(window)
@@ -893,12 +910,12 @@ class hogeWM:
         debug('debug: handle_unmap_notify called')
         if event.window in self.exposed_windows:
             self.unmanage_window(event.window)
+            self.focus_window(self.exposed_windows[0])
 
     def handle_map_request(self, event):
         debug('debug: handle_map_request called')
         self.manage_window(event.window)
         self.focus_window(event.window)
-        event.window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
     def handle_destroy_notify(self, event):
         debug('debug: handle_destroy_notify called')
@@ -957,8 +974,6 @@ class hogeWM:
             window.configure(x=x, y=y)
         elif mask == 0b01000000:
             window.configure(event.stack_mode)
-        self.focus_window(window)
-        window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
 
     def loop(self):
         while True:
