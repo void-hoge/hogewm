@@ -454,7 +454,6 @@ class hogeWM:
             if monitor['connected']:
                 geom = monitor['geometry']
                 width, height, x, y = geom['width'], geom['height'], geom['x'], geom['y']
-                
                 geometries[name] = {
                     'name': name,
                     'width': width,
@@ -497,7 +496,6 @@ class hogeWM:
                     'geometry': geom,
                     'primary': primary,
                 }
-        debug(str(monitors))
         return monitors
 
     def remap_monitors(self):
@@ -515,21 +513,21 @@ class hogeWM:
                 os.system(f'xrandr --output {name} --off')
 
     def reconfigure_monitors(self):
-        current_monitors = self.get_monitors_info()
-        for name in self.monitor_geometries.keys():
-            monitor = current_monitors.get(name, None)
-            if monitor is None:
-                return
-            if monitor['connected'] == True:
-                dstidx = list(self.monitor_geometries.keys()).index(name)
-        for window in self.managed_windows:
-            mgeom = self.get_monitor_geometry_with_window(window)
-            monitor = current_monitors.get(mgeom['name'], None)
-            if monitor is None or monitor['connected'] == False:
-                self.move_window_to_monitor(window, dstidx)
         self.remap_monitors()
-        self.monitor_geometries = self.get_available_monitor_geometries()
-        self.maxsize = self.get_screen_size()
+        updated_geometries = self.get_available_monitor_geometries()
+        if len(updated_geometries) == 0:
+            return
+        for window in self.managed_windows:
+            src = self.get_monitor_geometry_with_window(window)
+            if src is None:
+                debug('src window is None')
+                continue
+            dst = updated_geometries.get(src['name'], None)
+            if dst is None:
+                self.move_window_to_monitor(window, src, list(updated_geometries.values())[0])
+            else:
+                self.move_window_to_monitor(window, src, dst)
+        self.monitor_geometries = updated_geometries
 
     def parse_xmodmap(self):
         out = subprocess.getoutput('xmodmap')
@@ -596,27 +594,21 @@ class hogeWM:
             width=width,
             height=height)
 
-    def move_window_to_monitor(self, window, dst):
-        debug(f'{dst}')
-        if dst >= len(self.monitor_geometries) or dst < 0:
-            return
+    def move_window_to_monitor(self, window, src, dst):
+        # src and dst must be geometries.
+        debug(f'src: {src}, dst: {dst}')
         if window not in self.managed_windows:
             return
         wgeom = self.get_window_geometry(window)
         if wgeom is None:
             return
-        srcgeom = self.get_monitor_geometry_with_window(window)
-        src = list(self.monitor_geometries.values()).index(srcgeom)
-        if src == dst:
-            return
-        dstgeom = list(self.monitor_geometries.values())[dst]
-        hratio = dstgeom['width']/srcgeom['width']
-        vratio = dstgeom['height']/srcgeom['height']
-        x, y, width, height = wgeom.x, wgeom.y, wgeom.width, wgeom.height
-        xd = x - srcgeom['x']
-        yd = y - srcgeom['y']
-        x = int(xd * hratio) + dstgeom['x']
-        y = int(yd * vratio) + dstgeom['y']
+        hratio = dst['width']/src['width']
+        vratio = dst['height']/src['height']
+        x,y,width,height = wgeom.x, wgeom.y, wgeom.width, wgeom.height
+        xd = x - src['x']
+        yd = y - src['y']
+        x = int(xd * hratio) + dst['x']
+        y = int(yd * vratio) + dst['y']
         width = int(width * hratio)
         height = int(height * vratio)
         window.configure(
@@ -631,10 +623,11 @@ class hogeWM:
         geom = self.get_window_geometry(window)
         if geom is None:
             return
-        monitor = self.get_monitor_geometry_with_window(window)
-        src = list(self.monitor_geometries.values()).index(monitor)
-        dst = (src+1)%len(self.monitor_geometries)
-        self.move_window_to_monitor(window, dst)
+        src = self.get_monitor_geometry_with_window(window)
+        srcidx = list(self.monitor_geometries.values()).index(src)
+        dstidx = (srcidx+1)%len(self.monitor_geometries)
+        dst = list(self.monitor_geometries.values())[dstidx]
+        self.move_window_to_monitor(window, src, dst)
 
     def destroy_window(self, window):
         if window not in self.managed_windows:

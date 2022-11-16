@@ -4,6 +4,7 @@
 
 ## REQUIREMENTS
 - requiered
+  - Python3.7 and above (for dict order)
   - python-xlib (https://pypi.org/project/python-xlib/ )
 - optional (recommended)
   - rxvt-unicode
