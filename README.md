@@ -125,4 +125,4 @@ $ cp hogewm/home/.* $HOME
 - GPLv3
 
 ## AUTHOR
-- void-hoge
+- Mugi Noda(void-hoge)
