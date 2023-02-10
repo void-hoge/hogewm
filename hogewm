@@ -10,8 +10,8 @@ import math
 from Xlib import X, XK, display
 
 INIT_PTR_POS = 30
-WINDOW_MIN_WIDTH = 1920/4
-WINDOW_MIN_HEIGHT = 1080/4
+WINDOW_MIN_WIDTH = 1920/8
+WINDOW_MIN_HEIGHT = 1080/8
 
 DRAG_INTERVAL = 1/60
 
@@ -284,6 +284,11 @@ class hogeWM:
                 stack_mode=X.Above)
             self.frame_windows[side].map()
         self.framed_window = window
+
+    def map_frame_windows(self):
+        #debug('function: map_frame_windows called')
+        for side in ['left', 'right', 'upper', 'lower']:
+            self.frame_windows[side].map()
 
     def unmap_frame_windows(self):
         #debug('function: unmap_frame_windows called')
@@ -667,12 +672,12 @@ class hogeWM:
         self.unmanage_window(window)
 
     def capture_screen(self, window):
-        debug('function: capture_screen called')
+        #debug('function: capture_screen called')
         if window is None:
-            screen = '-root'
+            capture = '-window root'
         else:
             try:
-                screen = '-id 0x{:x}'.format(self.get_window_id(window))
+                capture = f'-window {self.get_window_id(window)}'
             except:
                 return
         now = datetime.datetime.now()
@@ -684,7 +689,7 @@ class hogeWM:
             str(now.minute).zfill(2),
             str(now.second).zfill(2),
             str(now.microsecond).zfill(6))
-        os.system(f'xwd {screen} | convert xwd:- {SCREENSHOT_DIR}/capture{date}.png')
+        os.system(f'import {capture} {SCREENSHOT_DIR}/capture{date}.png')
 
     def select_vscreen(self, num):
         #debug('function: select_vscreen called')
@@ -856,16 +861,20 @@ class hogeWM:
         else:
             self.capture_screen(None)
 
-    def cb_select_vscreen(self, event, args):
+    def cb_select_vscreen(self, event, num):
         debug('callback: cb_select_vscreen called')
-        self.select_vscreen(args)
+        if self.current_vscreen == num:
+            return
+        self.select_vscreen(num)
         if self.exposed_windows:
             self.sort_exposed_windows()
-            if self.framed_window:
-                self.sort_exposed_windows()
-            else:
-                self.focus_window(self.exposed_windows[0])
-                self.framed_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+            self.focus_window(self.exposed_windows[0])
+            self.framed_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+#            if self.framed_window:
+#                self.sort_exposed_windows()
+#            else:
+#                self.focus_window(self.exposed_windows[0])
+#                self.framed_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
         else:
             self.framed_window = None
             self.unmap_frame_windows()
@@ -910,6 +919,10 @@ class hogeWM:
                 y = self.start_geom.y + yd)
         elif self.start.detail == 3:
             # resize
+            if self.start_geom.width+xd <= WINDOW_MIN_WIDTH:
+                return
+            if self.start_geom.height+yd <= WINDOW_MIN_HEIGHT:
+                return
             self.start.child.configure(
                 width = self.start_geom.width + xd,
                 height = self.start_geom.height + yd)
