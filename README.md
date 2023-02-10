@@ -29,6 +29,8 @@ $ cp hogewm/home/.* $HOME
 - `startx` to start.
 
 ## KEY_BINDS
+You can configure keybinds and their actions by modifying `KEY_BINDS` in [hogewm](./hogewm).
+
 - Alt-Button1
 
   Move the pointed window while dragging.
