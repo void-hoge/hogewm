@@ -52,7 +52,7 @@ EVENTS = {
 KEY_BINDS = {
     ('i', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_focus_next_window',
-        'args': FORWARD
+        'arg': FORWARD
     },
     ('r', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_raise_window'
@@ -71,27 +71,27 @@ KEY_BINDS = {
     },
     ('m', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_maximize_window',
-        'args': HORIZONTAL | VERTICAL
+        'arg': HORIZONTAL | VERTICAL
     },
     ('comma', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_maximize_window',
-        'args': VERTICAL
+        'arg': VERTICAL
     },
     ('h', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_halve_window',
-        'args': LEFT
+        'arg': LEFT
     },
     ('l', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_halve_window',
-        'args': RIGHT
+        'arg': RIGHT
     },
     ('j', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_halve_window',
-        'args': LOWER
+        'arg': LOWER
     },
     ('k', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_halve_window',
-        'args': UPPER
+        'arg': UPPER
     },
     ('n', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_move_window_to_next_monitor'
@@ -104,35 +104,35 @@ KEY_BINDS = {
     },
     ('Print', X.ControlMask): {
         'method': 'cb_capture_screen',
-        'args': 'current'
+        'arg': 'current'
     },
     ('Print', 0): {
         'method': 'cb_capture_screen',
-        'args': 'full'
+        'arg': 'full'
     },
     ('F1', X.Mod1Mask): {
         'method': 'cb_select_vscreen',
-        'args': 0
+        'arg': 0
     },
     ('F2', X.Mod1Mask): {
         'method': 'cb_select_vscreen',
-        'args': 1
+        'arg': 1
     },
     ('F3', X.Mod1Mask): {
         'method': 'cb_select_vscreen',
-        'args': 2
+        'arg': 2
     },
     ('F4', X.Mod1Mask): {
         'method': 'cb_select_vscreen',
-        'args': 3
+        'arg': 3
     },
     ('d', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_send_window_to_next_vscreen',
-        'args': FORWARD
+        'arg': FORWARD
     },
     ('a', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_send_window_to_next_vscreen',
-        'args': BACKWARD
+        'arg': BACKWARD
     },
     ('t', X.Mod1Mask | X.ControlMask): {
         'method': 'cb_tile_windows'
@@ -141,7 +141,12 @@ KEY_BINDS = {
         'function': 'restart'
     },
     ('Home', X.Mod1Mask | X.ControlMask): {
-        'method': 'cb_reconfigure_monitors'
+        'method': 'cb_reconfigure_monitors',
+        'arg': True
+    },
+    ('End', X.Mod1Mask | X.ControlMask): {
+        'method': 'cb_reconfigure_monitors',
+        'arg': False
     },
 }
 
@@ -151,6 +156,9 @@ def debug(str):
 def restart():
     debug(f'restrating {sys.argv[0]}')
     os.execvp(sys.argv[0], [sys.argv[0]])
+
+def normal_density(sigma, mu, x):
+    return 1/(math.sqrt(2*math.pi*sigma**2))*math.exp(-((x-mu)**2)/(2*sigma**2))
 
 class hogeWM:
     def __init__(self):
@@ -436,33 +444,32 @@ class hogeWM:
         except:
             return None
 
+    def get_monitor_coverarea(self, wgeom, mgeom):
+        xmin = min(wgeom.x, mgeom['x'])
+        xmax = max(wgeom.x + wgeom.width, mgeom['x'] + mgeom['width'])
+        xsum = wgeom.width + mgeom['width']
+        xcover = max(0, xsum - (xmax-xmin))
+
+        ymin = min(wgeom.y, mgeom['y'])
+        ymax = max(wgeom.y + wgeom.height, mgeom['y'] + mgeom['height'])
+        ysum = wgeom.height + mgeom['height']
+        ycover = max(0, ysum - (ymax-ymin))
+
+        return xcover * ycover
+
     def get_monitor_geometry_with_window(self, window):
         #debug('function: get_monitor_geometry_with_window called')
-        geom = self.get_window_geometry(window)
-        if geom is None:
-            return
-        max_cover = 0
-        max_monitor = list(self.monitor_geometries.values())[0]
-        for monitor in self.monitor_geometries.values():
-            # horizontal(width)
-            h_sum = monitor['width'] + geom.width
-            h_cover = (h_sum-abs(monitor['x']-geom.x)-
-                       abs((monitor['x']+monitor['width'])-
-                           (geom.x+geom.width)))/2
-            if h_cover < 0:
-                h_cover = 0
-            # vertical(height)
-            v_sum = monitor['height'] + geom.height
-            v_cover = (v_sum-abs(monitor['y']-geom.y)-
-                       abs((monitor['y']+monitor['height'])-
-                           (geom.y+geom.height)))/2
-            if v_cover < 0:
-                v_cover = 0
-            cover = h_cover * v_cover
-            if max_cover < cover:
-                max_cover = cover
-                max_monitor = monitor
-        return max_monitor
+        geom  = self.get_window_geometry(window)
+        maxcoverage = 0
+        maxmonitor = list(self.monitor_geometries.values())[0]
+        for name, monitor in self.monitor_geometries.items():
+            coverarea = self.get_monitor_coverarea(geom, monitor)
+            coverage = coverarea / (monitor['width']*monitor['height'])
+            normcoverage = coverarea * coverage
+            if maxcoverage < normcoverage:
+                maxcoverage = normcoverage
+                maxmonitor = monitor
+        return maxmonitor
 
     def get_screen_size(self):
         debug('function: get_screen_size called')
@@ -480,6 +487,9 @@ class hogeWM:
         for name, monitor in monitors.items():
             if monitor['connected']:
                 geom = monitor['geometry']
+                if not geom:
+                    debug(f'Monitor {name} is connected but not mapped.')
+                    continue
                 width, height, x, y = geom['width'], geom['height'], geom['x'], geom['y']
                 geometries[name] = {
                     'name': name,
@@ -541,20 +551,23 @@ class hogeWM:
             else:
                 os.system(f'xrandr --output {name} --off')
 
-    def reconfigure_monitors(self):
+    def reconfigure_monitors(self, remap):
         debug('function: reconfigure_monitors called')
-        self.remap_monitors()
+        if remap:
+            self.remap_monitors()
         updated_geometries = self.get_available_monitor_geometries()
         if len(updated_geometries) == 0:
+            debug('no monitor is connected')
             return
+        basemonitor = list(updated_geometries.values())[0]
         for window in self.managed_windows:
             src = self.get_monitor_geometry_with_window(window)
             if src is None:
-                debug('src window is None')
+                debug('source window is None')
                 continue
             dst = updated_geometries.get(src['name'], None)
             if dst is None:
-                self.move_window_to_monitor(window, src, list(updated_geometries.values())[0])
+                self.move_window_to_monitor(window, src, basemonitor)
             else:
                 self.move_window_to_monitor(window, src, dst)
         self.monitor_geometries = updated_geometries
@@ -896,9 +909,9 @@ class hogeWM:
         self.tile_windows(window)
         self.focus_window(window)
 
-    def cb_reconfigure_monitors(self, event):
+    def cb_reconfigure_monitors(self, event, remap):
         debug('callback: cb_reconfigure_monitors called')
-        self.reconfigure_monitors()
+        self.reconfigure_monitors(remap)
         self.focus_window(self.framed_window)
 
     def handle_motion_notify(self, event):
@@ -981,10 +994,10 @@ class hogeWM:
         if rule:
             if 'method' in rule.keys():
                 method = getattr(self, rule['method'], None)
-                args = rule.get('args', None)
+                arg = rule.get('arg', None)
                 if method:
-                    if args is not None:
-                        method(event, args)
+                    if arg is not None:
+                        method(event, arg)
                     else:
                         method(event)
             elif 'function' in rule.keys():
