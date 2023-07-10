@@ -123,6 +123,10 @@ You can configure keybinds and their actions by modifying `KEY_BINDS` in [hogewm
 
   Reconfigure external outputs.
 
+- Ctrl-Alt-End
+
+  Reload xrandr and update internal status of monitors.
+
 ## LICENSE
 - GPLv3
 
