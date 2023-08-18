@@ -265,6 +265,8 @@ class hogeWM:
         if self.framed_window == None:
             return
         geom = self.get_window_geometry(self.framed_window)
+        if geom == None:
+            return
         for side in ['left', 'right', 'upper', 'lower']:
             x, y, width, height = 0,0,0,0
             if side == 'left':
