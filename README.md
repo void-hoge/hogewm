@@ -4,14 +4,14 @@
 
 ## REQUIREMENTS
 - requiered
-  - Python3.7 and above (for dict order)
+  - Python 3.7 and above (for dict order)
   - python-xlib (https://pypi.org/project/python-xlib/ )
 - optional (recommended)
-  - rxvt-unicode
-  - emacs
-  - google-chrome
-  - Roboto Mono Medium for Powerline
-  - imagemagick
+  - rxvt-unicode (invoked by ctrl-alt-1)
+  - emacs (invoked by ctrl-alt-2)
+  - google-chrome (invoked by ctrl-alt-3)
+  - Roboto Mono Medium for Powerline (using in .Xdefualts)
+  - imagemagick (for screenshot)
   - hogemonitor (https://github.com/void-hoge/hogemonitor.git )
 
 ## INSTALLATION
@@ -109,7 +109,7 @@ You can configure keybinds and their actions by modifying `KEY_BINDS` in [hogewm
 
 - Ctrl-Alt-t
 
-  Tile all windows on a monitor that has a framed window.
+  Tile all windows on a monitor that has the framed window.
 
 - Ctrl-Alt-v
 
@@ -127,8 +127,13 @@ You can configure keybinds and their actions by modifying `KEY_BINDS` in [hogewm
 
   Reload xrandr and update internal status of monitors.
 
+- Ctrl-Alt-BackSpace
+
+  Make the framed window always-top.
+  If the framed window is already always-top, disable always-top.
+
 ## LICENSE
 - GPLv3
 
 ## AUTHOR
-- Mugi Noda(void-hoge)
+- Mugi Noda (void-hoge)
