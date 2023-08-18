@@ -1002,8 +1002,6 @@ class hogeWM:
     def handle_destroy_notify(self, event):
         debug('handler: handle_destroy_notify called')
         self.unmanage_window(event.window)
-        self.focus_next_window(event.window)
-        self.framed_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
    
     def handle_key_press(self, event):
         debug('handler: handle_key_press called')
