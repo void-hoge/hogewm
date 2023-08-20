@@ -422,6 +422,8 @@ class hogeWM:
         window.set_input_focus(X.RevertToParent, 0)
         window.configure(stack_mode=X.Above)
         self.framed_window = window
+        self.stack_always_top()
+        self.draw_frame_windows()
 
     def focus_next_window(self, window, direction=FORWARD):
         #debug('function: focus_next_window called')
@@ -842,6 +844,7 @@ class hogeWM:
         try:
             self.maximize_window(window, args)
             window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+            self.draw_frame_windows()
         except:
             return
 
@@ -851,6 +854,7 @@ class hogeWM:
         try:
             self.halve_window(window, args)
             window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+            self.draw_frame_windows()
         except:
             return
 
@@ -958,6 +962,7 @@ class hogeWM:
             self.start.child.configure(
                 width = self.start_geom.width + xd,
                 height = self.start_geom.height + yd)
+        self.draw_frame_windows()
 
     def handle_button_press(self, event):
         debug('handler: handle_button_press called')
@@ -1070,8 +1075,6 @@ class hogeWM:
                 handler = getattr(self, EVENTS[event.type], None)
                 if handler:
                     handler(event)
-                    self.stack_always_top()
-                    self.draw_frame_windows()
 
 def main():
     wm = hogeWM()
