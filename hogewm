@@ -864,6 +864,7 @@ class hogeWM:
         try:
             self.move_window_to_next_monitor(window)
             window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+            self.draw_frame_windows()
         except:
             return
 
