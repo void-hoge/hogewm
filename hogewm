@@ -28,6 +28,11 @@ BACKWARD = 1
 
 MAX_VSCREEN = 4
 
+EDITOR = 'emacs'
+TERMINAL = 'urxvt'
+BROWSER = 'google-chrome'
+PRIORITY_WINDOW = EDITOR
+
 FRAME_COLOR = 'lemon chiffon'
 FRAME_THICKNESS = 2
 
@@ -58,13 +63,13 @@ KEY_BINDS = {
         'method': 'cb_raise_window'
     },
     ('1', X.Mod1Mask | X.ControlMask): {
-        'command': 'urxvt &'
+        'command': f'{TERMINAL} &'
     },
     ('2', X.Mod1Mask | X.ControlMask): {
-        'command': 'emacs &'
+        'command': f'{EDITOR} &'
     },
     ('3', X.Mod1Mask | X.ControlMask):{
-        'command': 'google-chrome &'
+        'command': f'{BROWSER} &'
     },
     ('v', X.Mod1Mask | X.ControlMask):{
         'command': 'pkill hogemonitor || hogemonitor 1 &'
@@ -159,9 +164,6 @@ def debug(str):
 def restart():
     debug(f'restrating {sys.argv[0]}')
     os.execvp(sys.argv[0], [sys.argv[0]])
-
-def normal_density(sigma, mu, x):
-    return 1/(math.sqrt(2*math.pi*sigma**2))*math.exp(-((x-mu)**2)/(2*sigma**2))
 
 class hogeWM:
     def __init__(self):
@@ -771,7 +773,7 @@ class hogeWM:
         offcuts_num = nrows*ncols - len(target_windows)
         eidx = None
         for i in range(len(target_windows)):
-            if 'emacs' in self.get_window_class(target_windows[i]).lower():
+            if PRIORITY_WINDOW in self.get_window_class(target_windows[i]).lower():
                 eidx = i
         if eidx is not None:
             target_windows[eidx], target_windows[ncols*(nrows-1)-1] = \
@@ -1078,6 +1080,11 @@ class hogeWM:
                     handler(event)
 
 def main():
+    try:
+        with open(f'{os.getenv("HOME")}/.hogewmrc', 'r') as config:
+            exec(config.read(), globals())
+    except FileNotFoundError:
+        pass
     wm = hogeWM()
     for win in wm.managed_windows.keys():
         print(wm.get_window_name(win), file=sys.stderr)
