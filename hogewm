@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 
 import os
 import sys
@@ -31,6 +31,7 @@ MAX_VSCREEN = 4
 EDITOR = 'emacs'
 TERMINAL = 'urxvt'
 BROWSER = 'google-chrome'
+
 PRIORITY_WINDOW = EDITOR
 
 FRAME_COLOR = 'lemon chiffon'
@@ -68,7 +69,7 @@ KEY_BINDS = {
     ('2', X.Mod1Mask | X.ControlMask): {
         'command': f'{EDITOR} &'
     },
-    ('3', X.Mod1Mask | X.ControlMask):{
+    ('3', X.Mod1Mask | X.ControlMask): {
         'command': f'{BROWSER} &'
     },
     ('v', X.Mod1Mask | X.ControlMask):{
@@ -402,7 +403,12 @@ class hogeWM:
             debug('unmanaged')
             self.managed_windows.pop(window)
         if window in self.exposed_windows:
-            self.exposed_windows.remove(window)
+            idx = self.exposed_windows.index(window)
+            self.exposed_windows.pop(idx)
+            if self.exposed_windows and window == self.framed_window:
+                window_ = self.exposed_windows[(idx - 1) % len(self.exposed_windows)]
+                self.focus_window(window_)
+                window_.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
         if self.always_top[self.current_vscreen] == window:
             self.always_top[self.current_vscreen] = None
 
@@ -463,7 +469,9 @@ class hogeWM:
 
     def get_monitor_geometry_with_window(self, window):
         #debug('function: get_monitor_geometry_with_window called')
-        geom  = self.get_window_geometry(window)
+        geom = self.get_window_geometry(window)
+        if not geom:
+            return list(self.monitor_geometries.values())[0]
         maxcoverage = 0
         maxmonitor = list(self.monitor_geometries.values())[0]
         for name, monitor in self.monitor_geometries.items():
@@ -696,6 +704,7 @@ class hogeWM:
             return
         window.destroy()
         self.unmanage_window(window)
+        
 
     def capture_screen(self, window):
         #debug('function: capture_screen called')
@@ -1033,6 +1042,7 @@ class hogeWM:
                 if function:
                     function()
             elif 'command' in rule.keys():
+                debug(f'executing "{rule["command"]}"')
                 os.system(rule['command'])
 
     def handle_key_release(self, event):
