@@ -310,7 +310,7 @@ class hogeWM:
     def manage_window(self, window):
         debug('function: manage_window called')
         attrs = self.get_window_attributes(window)
-        if window in self.managed_windows.keys():
+        if window in self.managed_windows:
             return
         if attrs is None:
             return
@@ -325,7 +325,7 @@ class hogeWM:
 
     def unmanage_window(self, window):
         debug('function: unmanage_window called')
-        if window in self.managed_windows.keys():
+        if window in self.managed_windows:
             debug('unmanaged')
             self.managed_windows.pop(window)
         if window in self.exposed_windows:
@@ -334,7 +334,7 @@ class hogeWM:
             if self.exposed_windows and window == self.framed_window:
                 window_ = self.exposed_windows[(idx - 1) % len(self.exposed_windows)]
                 self.focus_window(window_)
-                window_.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+                # next_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
         if self.always_top[self.current_vscreen] == window:
             self.always_top[self.current_vscreen] = None
 
@@ -500,7 +500,7 @@ class hogeWM:
             debug('no monitor is connected')
             return
         basemonitor = list(updated_geometries.values())[0]
-        for window in self.managed_windows.keys():
+        for window in self.managed_windows:
             src = self.managed_windows.get(window, None)
             if src is None:
                 debug('source window is None')
@@ -578,7 +578,7 @@ class hogeWM:
     def move_window_to_monitor(self, window, dst):
         # debug('function: move_window_to_monitor called')
         # dst must be a geometry.
-        if window not in self.managed_windows.keys():
+        if window not in self.managed_windows:
             return
         src = self.managed_windows.get(window, None)
         if src is None:
@@ -616,7 +616,7 @@ class hogeWM:
 
     def destroy_window(self, window):
         debug('function: destroy_window called')
-        if window not in self.managed_windows.keys():
+        if window not in self.managed_windows:
             return
         window.destroy()
         self.unmanage_window(window)
@@ -650,7 +650,7 @@ class hogeWM:
             return
         self.current_vscreen = num
         self.exposed_windows = []
-        for window in self.managed_windows.keys():
+        for window in self.managed_windows:
             if self.window_vscreen[window] == num:
                 window.map()
                 self.exposed_windows.append(window)
@@ -894,7 +894,7 @@ class hogeWM:
         window = event.child
         if window in self.frame_windows.values():
             return
-        if window not in self.managed_windows.keys():
+        if window not in self.managed_windows:
             return
         self.screen.root.grab_pointer(
             True, X.PointerMotionMask | X.ButtonReleaseMask, X.GrabModeAsync, X.GrabModeAsync, X.NONE, X.NONE, 0
@@ -939,7 +939,7 @@ class hogeWM:
         entry = (keycode, modifier)
         rule = self.keybinds.get(entry, None)
         if rule:
-            if 'method' in rule.keys():
+            if 'method' in rule:
                 method = getattr(self, rule['method'], None)
                 arg = rule.get('arg', None)
                 if method:
@@ -947,11 +947,11 @@ class hogeWM:
                         method(event, arg)
                     else:
                         method(event)
-            elif 'function' in rule.keys():
+            elif 'function' in rule:
                 function = globals().get(rule['function'], None)
                 if function:
                     function()
-            elif 'command' in rule.keys():
+            elif 'command' in rule:
                 debug(f'executing "{rule["command"]}"')
                 os.system(rule['command'])
 
@@ -987,7 +987,7 @@ class hogeWM:
             window.configure(x=x, y=y)
         elif mask == 0b01000000:
             window.configure(event.stack_mode)
-        if window in self.managed_windows.keys():
+        if window in self.managed_windows:
             self.managed_windows[window] = self.get_monitor_geometry_with_window(window)
             self.focus_window(window)
 
@@ -1007,7 +1007,7 @@ def main():
     except FileNotFoundError:
         pass
     wm = hogeWM()
-    for win in wm.managed_windows.keys():
+    for win in wm.managed_windows:
         print(wm.get_window_name(win), file=sys.stderr)
     wm.loop()
 
