@@ -334,7 +334,7 @@ class hogeWM:
             if self.exposed_windows and window == self.framed_window:
                 window_ = self.exposed_windows[(idx - 1) % len(self.exposed_windows)]
                 self.focus_window(window_)
-                # next_window.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
+                # window_.warp_pointer(INIT_PTR_POS, INIT_PTR_POS)
         if self.always_top[self.current_vscreen] == window:
             self.always_top[self.current_vscreen] = None
 
@@ -987,7 +987,7 @@ class hogeWM:
             window.configure(x=x, y=y)
         elif mask == 0b01000000:
             window.configure(event.stack_mode)
-        if window in self.managed_windows:
+        if window in self.managed_windows.keys():
             self.managed_windows[window] = self.get_monitor_geometry_with_window(window)
             self.focus_window(window)
 
