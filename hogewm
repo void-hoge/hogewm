@@ -312,7 +312,7 @@ class hogeWM:
         attrs = self.get_window_attributes(window)
         if window in self.managed_windows:
             return
-        if attrs is None:
+        if attrs == None:
             return
         if attrs.override_redirect:
             return
@@ -327,6 +327,7 @@ class hogeWM:
         debug('function: unmanage_window called')
         if window in self.managed_windows:
             debug('unmanaged')
+            self.window_vscreen.pop(window)
             self.managed_windows.pop(window)
         if window in self.exposed_windows:
             idx = self.exposed_windows.index(window)
