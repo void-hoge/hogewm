@@ -501,7 +501,7 @@ class hogeWM:
             debug('no monitor is connected')
             return
         basemonitor = list(updated_geometries.values())[0]
-        for window in self.managed_windows:
+        for window in self.managed_windows.keys():
             src = self.managed_windows.get(window, None)
             if src is None:
                 debug('source window is None')
@@ -651,7 +651,7 @@ class hogeWM:
             return
         self.current_vscreen = num
         self.exposed_windows = []
-        for window in self.managed_windows:
+        for window in self.managed_windows.keys():
             if self.window_vscreen[window] == num:
                 window.map()
                 self.exposed_windows.append(window)
@@ -752,8 +752,6 @@ class hogeWM:
             self.set_window_to_stack_top(window)
             if self.exposed_windows:
                 self.focus_next_window(self.exposed_windows[0])
-            else:
-                pass
             modifier = event.state
             self.pressed_keys = set()
             for i in range(len(self.mod_string) + 1):
