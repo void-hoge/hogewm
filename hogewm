@@ -68,7 +68,7 @@ KEY_BINDS = {
     ('l', X.Mod1Mask | X.ControlMask): {'method': 'cb_halve_window', 'arg': RIGHT},
     ('j', X.Mod1Mask | X.ControlMask): {'method': 'cb_halve_window', 'arg': LOWER},
     ('k', X.Mod1Mask | X.ControlMask): {'method': 'cb_halve_window', 'arg': UPPER},
-    ('n', X.Mod1Mask | X.ControlMask): {'method': 'cb_move_window_to_next_monitor'},
+    ('f', X.Mod1Mask | X.ControlMask): {'method': 'cb_move_window_to_next_monitor'},
     ('s', X.Mod1Mask | X.ControlMask): {'method': 'cb_swap_windows_bw_monitors'},
     ('z', X.Mod1Mask | X.ControlMask): {'method': 'cb_destroy_window'},
     ('Print', X.ControlMask): {'method': 'cb_capture_screen', 'arg': 'current'},
