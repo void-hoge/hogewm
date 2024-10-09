@@ -28,109 +28,33 @@ $ cp hogewm/home/.* $HOME
 ```
 - `startx` to start.
 
-## KEY_BINDS
+## KEY BIND
 You can configure keybinds and their actions by modifying `KEY_BINDS` in [hogewm](./hogewm).
 
-- Alt-Button1
-
-  Move the pointed window while dragging.
-
-- Alt-Button3
-
-  Resize the pointed window while dragging.
-
-- Ctrl-Alt-i
-
-  Select next window.
-
-- Ctrl-Alt-r
-
-  Focus(raise and draw frame) pointed window.
-
-- Ctrl-Alt-m
-
-  Maximize the framed window.
-
-- Ctrl-Alt-n
-
-  Move the framed window to next monitor.
-
-- Ctrl-Alt-s
-
-  Swap all windows between monitors.
-
-- Ctrl-Alt-h
-
-  Halve the framed window left-justified.
-
-- Ctrl-Alt-l
-
-  Halve the framed window right-justified.
-
-- Ctrl-Alt-j
-
-  Halve the framed window lower-justified.
-
-- Ctrl-Alt-k
-
-  Halve the framed window upper-justified.
-
-- Ctrl-Alt-1
-
-  Execute a command 'urxvt &'.
-
-- Ctrl-Alt-2
-
-  Execute a command 'emacs &'.
-
-- Ctrl-Alt-3
-
-  Execute a command 'google-chrome &'
-
-- Print
-
-  Capture the root screen and save it in $HOME/screenshots/
-
-- Ctrl-Print
-
-  Capture the framed window and save it in $HOME/screenshots/
-
-- Alt-F1~4
-
-  Select virtual 1~4 virtual screen.
-
-- Ctrl-Alt-d
-
-  Send framed window to forward virtual screen.
-
-- Ctrl-Alt-a
-
-  Send framed window to backward virtual screen.
-
-- Ctrl-Alt-t
-
-  Tile all windows on a monitor that has the framed window.
-
-- Ctrl-Alt-v
-
-  Toggle hogemonitor.
-  
-- Ctrl-Alt-Delete
-
-  Restart hogewm.
-
-- Ctrl-Alt-Home
-
-  Reconfigure external outputs.
-
-- Ctrl-Alt-End
-
-  Reload xrandr and update internal status of monitors.
-
-- Ctrl-Alt-BackSpace
-
-  Make the framed window always-top.
-  If the framed window is already always-top, disable always-top.
+| key bind | description |
+|--|--|
+| M-leftdrag | move window |
+| M-rightdrag | resize window |
+| C-M-i | select window |
+| C-M-r | select the window the cursor is in|
+| C-M-m | maximize the selected window |
+| C-M-f | move the selected window to the next monitor |
+| C-M-s | swap all windows between monitors |
+| C-M-(h,l,j,k) | halve the selected window |
+| C-M-comma | vartically maximize the selected window |
+| C-M-1 | open terminal emurator |
+| C-M-2 | open text editor |
+| C-M-3 | open web browser |
+| C-M-v | oepn system monitor (hogemonitor) |
+| Print | capture the entire screen and save it into `$HOME/screenshots/` |
+| C-Print | capture the selected window and save it into `$HOME/screenshots/` |
+| M-(F1,F2,F3,F4) | go to the virtual screen (1,2,3,4) |
+| C-M-(a,d) | move the selected window to the next virtual screen  |
+| C-M-t | tile windows |
+| C-M-delete | restart the window manager |
+| C-M-home | reconfigure external outputs |
+| C-M-end | reload external output configurations from xrandr |
+| C-M-backspace | set the selected window to always be on top |
 
 ## LICENSE
 - GPLv3
